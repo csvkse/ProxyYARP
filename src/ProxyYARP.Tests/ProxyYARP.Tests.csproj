@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- 测试项目不启用 AOT，使用普通 JIT 模式 -->
+    <PublishAot>false</PublishAot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 测试框架 -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk"              Version="17.12.0" />
+    <PackageReference Include="xunit"                               Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio"           Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector"                  Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- 断言库 -->
+    <PackageReference Include="FluentAssertions"                    Version="7.2.0" />
+    <!-- 集成测试 Host -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"    Version="9.0.7" />
+    <!-- SQLite（测试数据库） -->
+    <PackageReference Include="Microsoft.Data.Sqlite"               Version="9.0.7" />
+    <!-- Dapper -->
+    <PackageReference Include="Dapper"                              Version="2.1.35" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 引用主工程（不引用 AOT 发布产物，引用源码项目） -->
+    <ProjectReference Include="..\ProxyYARP\ProxyYARP.csproj" />
+  </ItemGroup>
+
+</Project>

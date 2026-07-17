@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProxyYARP — 路由管理</title>
+  <link rel="stylesheet" href="/shared.css">
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2128;
+      --border: #30363d; --accent: #58a6ff; --accent-dim: #1f6feb;
+      --text: #c9d1d9; --text-dim: #8b949e;
+      --success: #3fb950; --warn: #d29922; --error: #f85149;
+      --radius: 10px; --nav-w: 220px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; min-height: 100vh; }
+    .sidebar {
+      width: var(--nav-w); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
+    }
+    .sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; }
+    .brand-icon { width: 32px; height: 32px; }
+    .brand-title { font-size: 15px; font-weight: 700; }
+    .brand-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-label { font-size: 11px; font-weight: 600; color: var(--text-dim);
+      padding: 8px 20px 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .nav-item { display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px; font-size: 14px; color: var(--text-dim);
+      cursor: pointer; text-decoration: none; transition: all .15s;
+      border-left: 3px solid transparent; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(88,166,255,.1); color: var(--accent); border-left-color: var(--accent); }
+    .nav-item svg { width: 16px; height: 16px; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+    .logout-btn { width: 100%; padding: 7px; background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-dim); font-size: 13px; cursor: pointer; transition: all .15s; }
+    .logout-btn:hover { border-color: var(--error); color: var(--error); }
+    .main { margin-left: var(--nav-w); flex: 1; display: flex; flex-direction: column; }
+    .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
+    .page-title { font-size: 17px; font-weight: 600; }
+    .content { padding: 28px; }
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; margin-bottom: 24px; }
+    .section-header { padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .section-title { font-size: 14px; font-weight: 600; }
+    .search-input { padding: 6px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 13px; outline: none; width: 200px; }
+    .search-input:focus { border-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em;
+      border-bottom: 1px solid var(--border); background: var(--surface2); }
+    td { padding: 11px 16px; border-bottom: 1px solid rgba(48,54,61,.5); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: rgba(63,185,80,.15); color: var(--success); }
+    .badge-red { background: rgba(248,81,73,.15); color: var(--error); }
+    .badge-blue { background: rgba(88,166,255,.15); color: var(--accent); }
+    .btn { padding: 7px 16px; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: var(--accent-dim); color: #fff; }
+    .btn-primary:hover { background: var(--accent); }
+    .btn-danger { background: rgba(248,81,73,.15); color: var(--error); }
+    .btn-danger:hover { background: rgba(248,81,73,.3); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: var(--surface2); padding: 1px 5px; border-radius: 3px; color: var(--accent); }
+    .empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 28px; }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+    .form-field { margin-bottom: 16px; }
+    label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; font-weight: 500; }
+    .form-input { width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: 13px; outline: none; transition: border-color .2s; }
+    .form-input:focus { border-color: var(--accent); }
+    select.form-input { cursor: pointer; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      animation: slideIn .3s ease; }
+    .toast-success { background: rgba(63,185,80,.2); border: 1px solid var(--success); color: var(--success); }
+    .toast-error { background: rgba(248,81,73,.2); border: 1px solid var(--error); color: var(--error); }
+    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px;
+      cursor: pointer; transition: .3s; }
+    .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px;
+      left: 3px; top: 3px; background: white; border-radius: 50%; transition: .3s; }
+    input:checked + .toggle-slider { background: var(--accent-dim); }
+    input:checked + .toggle-slider:before { transform: translateX(16px); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <svg class="brand-icon" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14" stroke="#58a6ff" stroke-width="1.5" fill="none"/>
+        <path d="M8 16 L16 8 L24 16 L16 24 Z" fill="#58a6ff" opacity="0.2"/>
+        <circle cx="16" cy="16" r="4" fill="#58a6ff"/>
+      </svg>
+      <div><div class="brand-title">ProxyYARP</div><div class="brand-sub">反向代理管理</div></div>
+    </div>
+    <div class="nav">
+      <div class="nav-label">管理</div>
+      <a href="/index.html" class="nav-item">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>仪表盘
+      </a>
+      <a href="/routes.html" class="nav-item active">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1a1 1 0 0 0-1 1v.5a.5.5 0 0 0 1 0V2h9v.5a.5.5 0 0 0 1 0V2a1 1 0 0 0-1-1H3zm-.5 5a.5.5 0 0 0 0 1h11a.5.5 0 0 0 0-1h-11zm0 4a.5.5 0 0 0 0 1h11a.5.5 0 0 0 0-1h-11zm0 4a.5.5 0 0 0 0 1h11a.5.5 0 0 0 0-1h-11z"/></svg>路由管理
+      </a>
+      <a href="/clusters.html" class="nav-item">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 8a4 4 0 1 1 8 0 4 4 0 0 1-8 0z"/><path d="M2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/></svg>集群管理
+      </a>
+      <a href="/keys.html" class="nav-item">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8zm4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5z"/></svg>Key 管理
+      </a>
+    </div>
+    <div class="sidebar-footer">
+      <button class="logout-btn" @click="logout">退出登录</button>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title">路由管理</div>
+      <div style="display:flex;gap:10px;">
+        <input class="search-input" v-model="search" placeholder="搜索路由...">
+        <button class="btn btn-primary" @click="openCreate" v-if="isAdmin">+ 新建路由</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">路由列表 <span style="color:var(--text-dim);font-weight:400">({{ filteredRoutes.length }})</span></div>
+          <span style="font-size:12px;color:var(--text-dim)">修改后自动热重载 YARP，无需重启</span>
+        </div>
+        <table v-if="filteredRoutes.length > 0">
+          <thead><tr>
+            <th>路由 ID</th><th>路径</th><th>集群</th><th>方法</th><th>Host</th><th>优先级</th><th>状态</th><th v-if="isAdmin">操作</th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="r in filteredRoutes" :key="r.id">
+              <td><code>{{ r.routeId }}</code></td>
+              <td><code>{{ r.path }}</code></td>
+              <td><span class="badge badge-blue">{{ r.clusterId }}</span></td>
+              <td>{{ r.methods || 'ALL' }}</td>
+              <td>{{ r.hosts || '-' }}</td>
+              <td>{{ r.order }}</td>
+              <td>
+                <span class="badge" :class="r.isEnabled ? 'badge-green' : 'badge-red'">
+                  {{ r.isEnabled ? '启用' : '禁用' }}
+                </span>
+              </td>
+              <td v-if="isAdmin">
+                <button class="btn btn-ghost btn-sm" @click="openEdit(r)" style="margin-right:6px">编辑</button>
+                <button class="btn btn-danger btn-sm" @click="deleteRoute(r)">删除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="empty" v-else>{{ loading ? '加载中...' : '暂无路由' }}</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 创建/编辑弹窗 -->
+  <div class="modal-overlay" v-if="showModal" @click.self="showModal=false">
+    <div class="modal">
+      <div class="modal-title">{{ editId ? '编辑路由' : '新建路由' }}</div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>路由 ID *</label>
+          <input class="form-input" v-model="form.routeId" placeholder="my-api-route">
+        </div>
+        <div class="form-field">
+          <label>集群 ID *</label>
+          <input class="form-input" v-model="form.clusterId" placeholder="backend-cluster">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>路径匹配 *</label>
+        <input class="form-input" v-model="form.path" placeholder="/api/{**catch-all}">
+        <div class="form-hint">支持 YARP 路径模板，如 /api/{**rest} 或 /static/**</div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>HTTP 方法（留空=全部）</label>
+          <input class="form-input" v-model="form.methods" placeholder="GET,POST,PUT">
+        </div>
+        <div class="form-field">
+          <label>Host 匹配（留空=全部）</label>
+          <input class="form-input" v-model="form.hosts" placeholder="example.com">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>优先级（越小越高）</label>
+          <input class="form-input" type="number" v-model.number="form.order">
+        </div>
+        <div class="form-field" style="display:flex;align-items:center;gap:10px;padding-top:20px;">
+          <label style="margin-bottom:0">启用</label>
+          <label class="toggle">
+            <input type="checkbox" v-model="form.isEnabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" @click="showModal=false">取消</button>
+        <button class="btn btn-primary" @click="saveRoute" :disabled="saving">
+          {{ saving ? '保存中...' : '保存' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div v-if="toast.show" class="toast" :class="toast.type === 'success' ? 'toast-success' : 'toast-error'">
+    {{ toast.msg }}
+  </div>
+</div>
+
+<script type="module">
+import { createApp, ref, computed, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js';
+
+createApp({
+  setup() {
+    const apiKey = localStorage.getItem('api_key') || '';
+    const isAdmin = ref(localStorage.getItem('api_role') === 'Admin');
+    const loading = ref(true);
+    const saving = ref(false);
+    const routes = ref([]);
+    const search = ref('');
+    const showModal = ref(false);
+    const editId = ref(null);
+    const toast = ref({ show: false, msg: '', type: 'success' });
+
+    const defaultForm = () => ({
+      routeId: '', clusterId: '', path: '', methods: '', hosts: '', order: 0, isEnabled: true
+    });
+    const form = ref(defaultForm());
+
+    const headers = { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' };
+
+    const filteredRoutes = computed(() => {
+      const s = search.value.toLowerCase();
+      if (!s) return routes.value;
+      return routes.value.filter(r =>
+        r.routeId.toLowerCase().includes(s) ||
+        r.path.toLowerCase().includes(s) ||
+        r.clusterId.toLowerCase().includes(s)
+      );
+    });
+
+    function showToast(msg, type = 'success') {
+      toast.value = { show: true, msg, type };
+      setTimeout(() => toast.value.show = false, 3000);
+    }
+
+    async function loadRoutes() {
+      loading.value = true;
+      try {
+        const res = await fetch('/api/routes', { headers });
+        if (res.status === 401) { window.location.href = '/login.html'; return; }
+        routes.value = await res.json();
+      } finally { loading.value = false; }
+    }
+
+    function openCreate() {
+      form.value = defaultForm(); editId.value = null; showModal.value = true;
+    }
+
+    function openEdit(r) {
+      form.value = { routeId: r.routeId, clusterId: r.clusterId, path: r.path,
+        methods: r.methods || '', hosts: r.hosts || '', order: r.order, isEnabled: r.isEnabled };
+      editId.value = r.id; showModal.value = true;
+    }
+
+    async function saveRoute() {
+      if (!form.value.routeId || !form.value.clusterId || !form.value.path) {
+        showToast('路由ID、集群ID、路径为必填项', 'error'); return;
+      }
+      saving.value = true;
+      try {
+        const body = { ...form.value, methods: form.value.methods || null, hosts: form.value.hosts || null };
+        const url = editId.value ? `/api/routes/${editId.value}` : '/api/routes';
+        const method = editId.value ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
+        if (res.ok) {
+          showToast(editId.value ? '路由已更新，YARP 已热重载' : '路由已创建，YARP 已热重载');
+          showModal.value = false; await loadRoutes();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showToast(err.error || '保存失败', 'error');
+        }
+      } finally { saving.value = false; }
+    }
+
+    async function deleteRoute(r) {
+      if (!confirm(`确定删除路由 "${r.routeId}"？`)) return;
+      const res = await fetch(`/api/routes/${r.id}`, { method: 'DELETE', headers });
+      if (res.ok) { showToast('路由已删除，YARP 已热重载'); await loadRoutes(); }
+      else showToast('删除失败', 'error');
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST', headers });
+      localStorage.clear(); window.location.href = '/login.html';
+    }
+
+    onMounted(async () => {
+      if (!apiKey) { window.location.href = '/login.html'; return; }
+      await loadRoutes();
+    });
+
+    return { isAdmin, loading, saving, routes, search, filteredRoutes, showModal, editId, form, toast, openCreate, openEdit, saveRoute, deleteRoute, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

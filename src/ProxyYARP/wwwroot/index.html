@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ProxyYARP - Server Management</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.loli.net" crossorigin>
+    <link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#0a0a0f',
+                            surf: '#12121e',
+                            edge: '#1a1a2e',
+                            cyan: '#00f0ff',
+                            purple: '#a855f7',
+                            green: '#00ff88',
+                            red: '#ff3355',
+                            text: '#e8e8f0',
+                            muted: '#8888aa',
+                            dim: '#555577'
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Orbitron', 'sans-serif'],
+                        body: ['Inter', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'neon': '0 0 8px rgba(0,240,255,.3)',
+                        'neon-md': '0 0 16px rgba(0,240,255,.4)',
+                        'neon-green': '0 0 8px rgba(0,255,136,.3)',
+                        'neon-red': '0 0 8px rgba(255,51,85,.3)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* ========== Base ========== */
+        * { scrollbar-width: thin; scrollbar-color: #1a1a2e #0a0a0f; box-sizing: border-box; }
+        body { font-family: Inter, -apple-system, sans-serif; background-color: #0a0a0f; color: #e8e8f0; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2a2a4e; }
+
+        .neon-border {
+            border: 1px solid #1e1e3a;
+            transition: border-color .3s, box-shadow .3s;
+        }
+        .neon-border:hover, .neon-border:focus-within {
+            border-color: rgba(0,240,255,.4);
+            box-shadow: 0 0 8px rgba(0,240,255,.12);
+        }
+        .glass-panel {
+            background: rgba(18,18,30,.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* ========== Form ========== */
+        .cyber-input {
+            background: #1a1a2e;
+            border: 1px solid #1e1e3a;
+            color: #e8e8f0;
+            transition: border-color .3s, box-shadow .3s;
+        }
+        .cyber-input:focus {
+            outline: none;
+            border-color: #00f0ff;
+            box-shadow: 0 0 8px rgba(0,240,255,.25);
+        }
+        .cyber-input::placeholder { color: #555577; }
+
+        .cyber-select {
+            background: #1a1a2e;
+            border: 1px solid #1e1e3a;
+            color: #e8e8f0;
+            transition: border-color .3s, box-shadow .3s;
+        }
+        .cyber-select:focus {
+            outline: none;
+            border-color: #00f0ff;
+            box-shadow: 0 0 8px rgba(0,240,255,.25);
+        }
+
+        .cyber-checkbox {
+            appearance: none;
+            width: 16px; height: 16px;
+            background: #1a1a2e;
+            border: 1px solid #555577;
+            border-radius: 3px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .2s;
+            margin: 0;
+        }
+        .cyber-checkbox:checked {
+            background: rgba(0,240,255,.2);
+            border-color: #00f0ff;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='%2300f0ff' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+            background-size: 12px;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* ========== Table ========== */
+        .cyber-table th {
+            background: #12121e;
+            color: #8888aa;
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1e1e3a;
+        }
+        .cyber-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #16162a;
+            font-size: 13px;
+        }
+        .cyber-table tr:hover td { background: rgba(0,240,255,.03); }
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        /* ========== Code ========== */
+        .code-block {
+            background: #0d0d16;
+            border: 1px solid #1a1a2e;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', Monaco, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+
+<body class="bg-cyber-bg text-cyber-text antialiased min-h-screen">
+    <div id="app" v-cloak class="min-h-screen flex flex-col">
+        
+        <!-- 閻ц缍嶉悾宀勬桨 -->
+        <div v-if="!isAuthenticated" class="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
+            <div class="absolute w-[800px] h-[800px] bg-cyber-cyan/5 rounded-full blur-[100px] -top-[400px] -right-[200px] pointer-events-none"></div>
+            <div class="absolute w-[600px] h-[600px] bg-cyber-purple/5 rounded-full blur-[80px] -bottom-[300px] -left-[100px] pointer-events-none"></div>
+
+            <div class="glass-panel neon-border p-8 rounded-2xl w-full max-w-md relative z-10">
+                <!-- 鐠囶叀鈻堥崚鍥ㄥ床 -->
+                <div class="absolute top-4 right-4">
+                    <button @click="toggleLocale" class="text-xs font-mono text-cyber-muted hover:text-cyber-cyan transition-colors px-2 py-1 border border-[#1e1e3a] rounded bg-cyber-bg">
+                        {{ locale === 'zh-CN' ? 'EN' : '\u4E2D' }}
+                    </button>
+                </div>
+
+                <div class="text-center mb-8 mt-2">
+                    <h1 class="font-display text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan to-cyber-purple drop-shadow-[0_0_8px_rgba(0,240,255,0.4)]">{{ t('login.title') }}</h1>
+                    <p class="text-cyber-muted mt-2 text-sm font-mono tracking-widest">{{ t('login.subtitle') }}</p>
+                </div>
+
+                <form @submit.prevent="login" class="space-y-6">
+                    <div>
+                        <label class="block text-xs font-mono text-cyber-muted mb-2 uppercase tracking-wider">{{ t('login.keyLabel') }}</label>
+                        <div class="relative">
+                            <input v-model="loginKey" type="password" required
+                                class="cyber-input w-full rounded px-4 py-3 font-mono text-sm"
+                                :placeholder="t('login.keyPlaceholder')" />
+                        </div>
+                    </div>
+                    <button type="submit" :disabled="loading"
+                        class="w-full bg-transparent neon-border hover:bg-cyber-cyan/10 hover:border-cyber-cyan hover:shadow-neon hover:text-cyber-cyan text-cyber-text font-mono text-sm py-3 rounded transition-all tracking-widest uppercase relative overflow-hidden group">
+                        <span class="relative z-10">{{ loading ? t('login.btnAuthenticating') : t('login.btnLogin') }}</span>
+                        <div class="absolute inset-0 w-0 bg-cyber-cyan/20 group-hover:w-full transition-all duration-300 ease-out"></div>
+                    </button>
+                    <p v-if="loginError" class="text-cyber-red text-xs font-mono text-center mt-2">{{ loginError }}</p>
+                </form>
+            </div>
+        </div>
+
+        <!-- 娑撶粯甯堕崣鎵櫕闂?-->
+        <div v-else class="flex-1 flex flex-col md:flex-row h-screen">
+            <!-- Sidebar -->
+            <aside class="w-full md:w-64 glass-panel border-r border-[#1e1e3a] flex flex-col z-20">
+                <div class="p-6 border-b border-[#1e1e3a] flex justify-between items-start">
+                    <div>
+                        <h1 class="font-display text-xl font-bold text-cyber-cyan drop-shadow-[0_0_5px_rgba(0,240,255,0.4)]">PROXY YARP</h1>
+                        <p class="text-[10px] font-mono text-cyber-muted mt-1 tracking-widest uppercase">{{ t('nav.adminConsole') }}</p>
+                    </div>
+                    <button @click="toggleLocale" class="text-[10px] font-mono text-cyber-muted hover:text-cyber-cyan transition-colors px-2 py-1 border border-[#1e1e3a] rounded bg-cyber-bg" title="Toggle Language">
+                        {{ locale === 'zh-CN' ? 'EN' : '\u4E2D' }}
+                    </button>
+                </div>
+                <nav class="flex-1 py-4 space-y-1 overflow-y-auto px-3">
+                    <a v-for="nav in navItems" :key="nav.id" href="#" @click.prevent="currentView = nav.id"
+                        :class="[
+                            'flex items-center px-4 py-3 rounded text-sm font-mono tracking-wide transition-all',
+                            currentView === nav.id 
+                                ? 'bg-cyber-cyan/10 text-cyber-cyan border-l-2 border-cyber-cyan shadow-[inset_0_0_12px_rgba(0,240,255,0.05)]' 
+                                : 'text-cyber-muted hover:bg-[#1a1a3a] hover:text-white'
+                        ]">
+                        <span class="mr-3 text-lg" v-html="nav.icon"></span>
+                        {{ t(nav.nameKey) }}
+                    </a>
+                </nav>
+                <div class="p-4 border-t border-[#1e1e3a] space-y-2">
+                    <div class="px-2 py-1 flex items-center text-xs font-mono text-cyber-muted bg-black/20 rounded">
+                        <span class="w-2 h-2 rounded-full bg-cyber-green shadow-neon-green mr-2"></span>
+                        {{ currentUser?.role === 'Admin' ? 'Admin' : 'Read-Only' }}
+                    </div>
+                    <button @click="logout" class="w-full flex items-center justify-center px-4 py-2 border border-cyber-red/30 text-cyber-red/80 hover:bg-cyber-red/10 hover:text-cyber-red hover:border-cyber-red hover:shadow-neon-red rounded text-xs font-mono uppercase tracking-widest transition-all">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        {{ t('nav.logout') }}
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 bg-cyber-bg relative overflow-y-auto z-10 p-6 md:p-8">
+
+                <!-- 鐟欏棗娴橀崚鍥ㄥ床 -->
+                <div class="max-w-6xl mx-auto h-full">
+                    
+                    <!-- Clusters View -->
+                    <div v-if="currentView === 'clusters'" class="animate-fade-in">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('clusters.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('clusters.desc') }}</p>
+                            </div>
+                            <button @click="openClusterModal()" v-if="isAdmin" class="bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/20 hover:shadow-neon px-4 py-2 rounded text-sm font-mono uppercase tracking-widest transition-all">
+                                {{ t('clusters.newBtn') }}
+                            </button>
+                        </div>
+                        
+                        <div v-if="loadingData" class="text-cyber-cyan font-mono text-sm flex items-center animate-pulse">
+                            <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-cyber-cyan" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {{ t('common.loadingData') }}
+                        </div>
+
+                        <div v-else class="space-y-6">
+                            <div v-for="cluster in clusters" :key="cluster.id" class="glass-panel neon-border rounded-lg overflow-hidden transition-all">
+                                <!-- Cluster Header -->
+                                <div class="p-4 border-b border-[#1e1e3a] bg-cyber-surf flex justify-between items-center group">
+                                    <div class="flex items-center space-x-4">
+                                        <div :class="['w-2 h-2 rounded-full', cluster.isEnabled ? 'bg-cyber-green shadow-neon-green' : 'bg-cyber-muted']"></div>
+                                        <div>
+                                            <div class="font-mono text-lg font-bold flex items-center">
+                                                {{ cluster.clusterId }}
+                                                <span class="ml-3 px-2 py-0.5 text-[10px] rounded border border-[#1e1e3a] text-cyber-muted uppercase">{{ cluster.loadBalancing }}</span>
+                                                <span v-if="cluster.healthCheckEnabled" class="ml-2 px-2 py-0.5 text-[10px] rounded border border-cyber-green/30 text-cyber-green bg-cyber-green/10 uppercase">{{ t('clusters.healthCheck') }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2" v-if="isAdmin">
+                                        <button @click="openClusterModal(cluster)" class="text-cyber-muted hover:text-cyber-cyan text-xs font-mono uppercase px-2 py-1">{{ t('common.edit') }}</button>
+                                        <button @click="deleteCluster(cluster.id)" class="text-cyber-muted hover:text-cyber-red text-xs font-mono uppercase px-2 py-1">{{ t('common.del') }}</button>
+                                    </div>
+                                </div>
+                                <!-- Destinations -->
+                                <div class="p-4">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="text-xs font-mono text-cyber-muted uppercase tracking-wider">{{ t('clusters.destinations') }}</h4>
+                                        <button @click="openDestModal(cluster.clusterId)" v-if="isAdmin" class="text-[10px] font-mono text-cyber-cyan hover:text-white border border-cyber-cyan/30 px-2 py-1 rounded hover:bg-cyber-cyan/20 transition-colors uppercase">{{ t('clusters.addNode') }}</button>
+                                    </div>
+                                    
+                                    <div v-if="!clusterDests(cluster.clusterId).length" class="text-xs font-mono text-cyber-muted text-center py-4 border border-dashed border-[#1e1e3a] rounded">
+                                        {{ t('clusters.noDestConfig') }}
+                                    </div>
+                                    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        <div v-for="dest in clusterDests(cluster.clusterId)" :key="dest.id" 
+                                            class="p-3 rounded border bg-cyber-bg/50 relative group transition-all"
+                                            :class="dest.isEnabled ? 'border-[#1e1e3a] hover:border-cyber-cyan/50' : 'border-[#1e1e3a] opacity-60'">
+                                            <div class="flex justify-between">
+                                                <div class="font-mono text-sm text-cyber-text truncate pr-4" :title="dest.address">{{ dest.address }}</div>
+                                                <div :class="['w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0', dest.isEnabled ? 'bg-cyber-green' : 'bg-cyber-red']"></div>
+                                            </div>
+                                            <div class="text-[10px] font-mono text-cyber-muted mt-1 truncate">ID: {{ dest.destId }}</div>
+                                            <div v-if="dest.health" class="text-[10px] font-mono text-cyber-cyan/70 mt-0.5 truncate">{{ t('clusters.health') }}: {{ dest.health }}</div>
+                                            
+                                            <div class="absolute inset-0 bg-cyber-bg/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-3 rounded" v-if="isAdmin">
+                                                <button @click="openDestModal(cluster.clusterId, dest)" class="text-xs font-mono text-cyber-cyan hover:underline">{{ t('common.edit') }}</button>
+                                                <button @click="deleteDest(dest.id)" class="text-xs font-mono text-cyber-red hover:underline">{{ t('common.del') }}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="clusters.length === 0" class="text-center py-12 border border-dashed border-[#1e1e3a] rounded-lg">
+                                <p class="text-cyber-muted font-mono text-sm">{{ t('clusters.noConfig') }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Routes View -->
+                    <div v-else-if="currentView === 'routes'" class="animate-fade-in">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('routes.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('routes.desc') }}</p>
+                            </div>
+                            <button @click="openRouteModal()" v-if="isAdmin" class="bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/20 hover:shadow-neon px-4 py-2 rounded text-sm font-mono uppercase tracking-widest transition-all">
+                                {{ t('routes.newBtn') }}
+                            </button>
+                        </div>
+
+                        <div class="glass-panel neon-border rounded-lg overflow-hidden">
+                            <div class="table-scroll">
+                                <table class="cyber-table w-full text-left border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th class="font-normal">{{ t('common.status') }}</th>
+                                            <th class="font-normal">{{ t('routes.routeId') }}</th>
+                                            <th class="font-normal">{{ t('routes.matchPath') }}</th>
+                                            <th class="font-normal">{{ t('routes.hosts') }}</th>
+                                            <th class="font-normal">{{ t('routes.clusterId') }}</th>
+                                            <th class="font-normal">{{ t('routes.order') }}</th>
+                                            <th class="font-normal text-right" v-if="isAdmin">{{ t('common.actions') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="font-mono divide-y divide-[#1e1e3a]">
+                                        <tr v-if="routes.length === 0">
+                                            <td colspan="7" class="p-8 text-center text-cyber-muted">{{ t('routes.noConfig') }}</td>
+                                        </tr>
+                                        <tr v-for="r in routes" :key="r.id">
+                                            <td>
+                                                <div :class="['w-2 h-2 rounded-full', r.isEnabled ? 'bg-cyber-green shadow-neon-green' : 'bg-cyber-muted']"></div>
+                                            </td>
+                                            <td class="font-bold">{{ r.routeId }}</td>
+                                            <td class="text-cyber-cyan">{{ r.path }}</td>
+                                            <td class="text-cyber-muted">{{ r.hosts || '*' }}</td>
+                                            <td>{{ r.clusterId }}</td>
+                                            <td class="text-cyber-muted">{{ r.order }}</td>
+                                            <td class="text-right space-x-3" v-if="isAdmin">
+                                                <button @click="openRouteModal(r)" class="text-cyber-cyan hover:underline uppercase text-[10px]">{{ t('common.edit') }}</button>
+                                                <button @click="deleteRoute(r.id)" class="text-cyber-red hover:underline uppercase text-[10px]">{{ t('common.del') }}</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TCP Proxies View -->
+                    <div v-else-if="currentView === 'tcp'" class="animate-fade-in">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('tcp.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('tcp.desc') }}</p>
+                            </div>
+                            <button @click="openTcpRouteModal()" v-if="isAdmin" class="bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/20 hover:shadow-neon px-4 py-2 rounded text-sm font-mono uppercase tracking-widest transition-all">
+                                {{ t('tcp.newBtn') }}
+                            </button>
+                        </div>
+
+                        <div class="glass-panel neon-border rounded-lg overflow-hidden">
+                            <div class="table-scroll">
+                                <table class="cyber-table w-full text-left border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th class="font-normal">{{ t('common.status') }}</th>
+                                            <th class="font-normal">{{ t('tcp.routeId') }}</th>
+                                            <th class="font-normal">{{ t('tcp.protocol') }}</th>
+                                            <th class="font-normal">{{ t('tcp.listenPort') }}</th>
+                                            <th class="font-normal">{{ t('tcp.policy') }}</th>
+                                            <th class="font-normal">{{ t('tcp.target') }}</th>
+                                            <th class="font-normal text-right" v-if="isAdmin">{{ t('common.actions') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="font-mono divide-y divide-[#1e1e3a]">
+                                        <tr v-if="tcpRoutes.length === 0">
+                                            <td colspan="7" class="p-8 text-center text-cyber-muted">{{ t('tcp.noConfig') }}</td>
+                                        </tr>
+                                        <tr v-for="r in tcpRoutes" :key="r.id">
+                                            <td>
+                                                <div :class="['w-2 h-2 rounded-full', r.isEnabled ? 'bg-cyber-green shadow-neon-green' : 'bg-cyber-muted']"></div>
+                                            </td>
+                                            <td class="font-bold">{{ r.routeId }}</td>
+                                            <td class="text-cyber-purple font-bold">{{ r.protocol }}</td>
+                                            <td class="text-cyber-cyan font-bold">{{ r.listenPort }}</td>
+                                            <td class="text-cyber-muted uppercase text-[10px]">{{ r.loadBalancingPolicy }}</td>
+                                            <td class="text-cyber-muted text-xs">
+                                                <div v-for="(d, i) in r.destinations" :key="i">{{ d.targetHost }}:{{ d.targetPort }} (W:{{ d.weight }})</div>
+                                            </td>
+                                            <td class="text-right space-x-3" v-if="isAdmin">
+                                                <button @click="openTcpRouteModal(r)" class="text-cyber-cyan hover:underline uppercase text-[10px]">{{ t('common.edit') }}</button>
+                                                <button @click="deleteTcpRoute(r.id)" class="text-cyber-red hover:underline uppercase text-[10px]">{{ t('common.del') }}</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Keys View -->
+                    <div v-else-if="currentView === 'keys'" class="animate-fade-in">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('keys.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('keys.desc') }}</p>
+                            </div>
+                            <button @click="openKeyModal()" v-if="isAdmin" class="bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/20 hover:shadow-neon px-4 py-2 rounded text-sm font-mono uppercase tracking-widest transition-all">
+                                {{ t('keys.newBtn') }}
+                            </button>
+                        </div>
+
+                        <div v-if="!isAdmin" class="glass-panel border border-[#1e1e3a] p-8 rounded-lg text-center">
+                            <p class="text-cyber-red font-mono font-bold mb-2">{{ t('keys.accessDenied') }}</p>
+                            <p class="text-cyber-muted text-sm font-mono">{{ t('keys.accessDeniedDesc') }}</p>
+                        </div>
+
+                        <div v-else class="glass-panel neon-border rounded-lg overflow-hidden">
+                            <div class="table-scroll">
+                                <table class="cyber-table w-full text-left border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th class="font-normal">{{ t('common.status') }}</th>
+                                            <th class="font-normal">{{ t('keys.name') }}</th>
+                                            <th class="font-normal">{{ t('keys.role') }}</th>
+                                            <th class="font-normal">{{ t('keys.keyPrefix') }}</th>
+                                            <th class="font-normal">{{ t('keys.lastUsed') }}</th>
+                                            <th class="font-normal text-right">{{ t('common.actions') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="font-mono divide-y divide-[#1e1e3a]">
+                                        <tr v-if="keys.length === 0">
+                                            <td colspan="6" class="p-8 text-center text-cyber-muted">{{ t('keys.desc') }}</td>
+                                        </tr>
+                                        <tr v-for="k in keys" :key="k.id">
+                                            <td>
+                                                <div :class="['w-2 h-2 rounded-full', k.isEnabled ? 'bg-cyber-green' : 'bg-cyber-muted']"></div>
+                                            </td>
+                                            <td class="font-bold">{{ k.name }}</td>
+                                            <td><span class="px-2 py-1 text-[10px] rounded border border-[#1e1e3a] bg-cyber-bg uppercase">{{ k.role }}</span></td>
+                                            <td class="text-cyber-muted">{{ k.keyValue.substring(0,4) }}***</td>
+                                            <td class="text-cyber-muted text-xs">{{ k.lastUsedAt || t('keys.never') }}</td>
+                                            <td class="text-right space-x-3">
+                                                <button @click="openKeyModal(k)" class="text-cyber-cyan hover:underline uppercase text-[10px]">{{ t('common.edit') }}</button>
+                                                <button @click="deleteKey(k.id)" class="text-cyber-red hover:underline uppercase text-[10px]">{{ t('common.del') }}</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Help & Tricks View -->
+                    <div v-else-if="currentView === 'help'" class="animate-fade-in">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-display font-bold">{{ t('help.title') }}</h2>
+                            <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('help.desc') }}</p>
+                        </div>
+                        
+                        <div class="space-y-6">
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q1Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q1Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-muted">// Route Matching Example</span><br/>
+                                    <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/api/{**catch-all}</span><br/>
+                                    <span class="text-cyber-purple">Request URL:</span> <span class="text-white">/api/v1/users/123</span><br/>
+                                    <span class="text-cyber-purple">Captured `catch-all`:</span> <span class="text-cyber-cyan">v1/users/123</span>
+                                </div>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q2Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q2Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-muted">// Forwarding Flow</span><br/>
+                                    <span class="text-cyber-green">GET</span> http://localhost:8080/demo/get<br/>
+                                    <span class="text-cyber-dim">閳?Proxy forwards to 閳?/span><br/>
+                                    <span class="text-cyber-green">GET</span> https://httpbin.org/demo/get
+                                </div>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q3Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q3Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-muted">// Transform: PathRemovePrefix</span><br/>
+                                    <span class="text-cyber-purple">Metadata:</span> <span class="text-white">[{"PathRemovePrefix": "/demo"}]</span><br/><br/>
+                                    <span class="text-cyber-green">GET</span> http://localhost:8080/demo/api/users<br/>
+                                    <span class="text-cyber-dim">閳?Strip prefix "/demo", forwards to 閳?/span><br/>
+                                    <span class="text-cyber-green">GET</span> https://httpbin.org/api/users
+                                </div>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q4Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q4Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-muted">// Domain-based Routing (Multi-tenant)</span><br/>
+                                    <span class="text-cyber-purple">Route 1:</span> <span class="text-white">Host: api.a.com, Path: /api/{**catch-all} -> ClusterA</span><br/>
+                                    <span class="text-cyber-purple">Route 2:</span> <span class="text-white">Host: api.b.com, Path: /api/{**catch-all} -> ClusterB</span><br/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+
+        <!-- 闁氨鏁?Modal 閼冲本娅?-->
+        <div v-if="modal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div class="glass-panel neon-border w-full max-w-md rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-[#1e1e3a] flex justify-between items-center">
+                    <h3 class="font-display font-bold text-lg text-cyber-cyan uppercase">{{ modal.title }}</h3>
+                    <button @click="closeModal" class="text-cyber-muted hover:text-white">&times;</button>
+                </div>
+                <div class="p-5 overflow-y-auto space-y-4 flex-1 font-mono text-sm">
+                    
+                    <!-- Cluster Form -->
+                    <template v-if="modal.type === 'cluster'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('clusters.modalClusterId') }}</label>
+                            <input v-model="form.clusterId" type="text" class="cyber-input w-full rounded px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('clusters.modalLb') }}</label>
+                            <select v-model="form.loadBalancing" class="cyber-select w-full rounded px-3 py-2">
+                                <option value="RoundRobin">RoundRobin</option>
+                                <option value="Random">Random</option>
+                                <option value="PowerOfTwoChoices">PowerOfTwoChoices</option>
+                                <option value="FirstAlphabetical">FirstAlphabetical</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('clusters.modalHc') }}</label>
+                            <input v-model="form.healthCheckEnabled" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder='{"Active":{"Enabled":true}}'>
+                        </div>
+                        <div v-if="form.id" class="flex items-center space-x-2 mt-2">
+                            <input type="checkbox" v-model="form.isEnabled" id="cenable" class="cyber-checkbox">
+                            <label for="cenable" class="text-xs text-white ml-2">{{ t('common.enabled') }}</label>
+                        </div>
+                    </template>
+
+                    <!-- Destination Form -->
+                    <template v-if="modal.type === 'dest'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('clusters.modalDestId') }}</label>
+                            <input v-model="form.destId" type="text" class="cyber-input w-full rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('clusters.modalAddress') }}</label>
+                            <input v-model="form.address" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="http://10.0.0.1:5000" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('clusters.modalHealthUrl') }}</label>
+                            <input v-model="form.health" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="http://10.0.0.1:5000/health">
+                        </div>
+                        <div v-if="form.id" class="flex items-center space-x-2 mt-2">
+                            <input type="checkbox" v-model="form.isEnabled" id="denable" class="cyber-checkbox">
+                            <label for="denable" class="text-xs text-white ml-2">{{ t('common.enabled') }}</label>
+                        </div>
+                    </template>
+
+                    <!-- Route Form -->
+                    <template v-if="modal.type === 'route'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('routes.routeId') }} *</label>
+                            <input v-model="form.routeId" type="text" class="cyber-input w-full rounded px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('routes.modalTarget') }}</label>
+                            <select v-model="form.clusterId" class="cyber-select w-full rounded px-3 py-2" required>
+                                <option v-for="c in clusters" :key="c.id" :value="c.clusterId">{{ c.clusterId }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('routes.modalPath') }}</label>
+                            <input v-model="form.path" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="/api/{**catch-all}" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-cyber-muted mb-1">{{ t('routes.hosts') }}</label>
+                                <input v-model="form.hosts" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="example.com">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-cyber-muted mb-1">{{ t('routes.modalMethods') }}</label>
+                                <input v-model="form.methods" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="GET,POST">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('routes.order') }} (int)</label>
+                            <input v-model.number="form.order" type="number" class="cyber-input w-full rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">Metadata (YARP Transforms JSON)</label>
+                            <input v-model="form.metadata" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder='[{"PathRemovePrefix": "/demo"}]'>
+                        </div>
+                        <div v-if="form.id" class="flex items-center space-x-2 mt-2">
+                            <input type="checkbox" v-model="form.isEnabled" id="renable" class="cyber-checkbox">
+                            <label for="renable" class="text-xs text-white ml-2">{{ t('common.enabled') }}</label>
+                        </div>
+                    </template>
+
+                    <!-- TCP Route Form -->
+                    <template v-if="modal.type === 'tcp'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('tcp.routeId') }} *</label>
+                            <input v-model="form.routeId" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="e.g. MySQL Forward" required>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-cyber-muted mb-1">{{ t('tcp.modalProtocol') }}</label>
+                                <select v-model="form.protocol" class="cyber-select w-full rounded px-3 py-2" required>
+                                    <option value="TCP">TCP</option>
+                                    <option value="UDP">UDP</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-cyber-muted mb-1">{{ t('tcp.modalListenPort') }}</label>
+                                <input v-model.number="form.listenPort" type="number" class="cyber-input w-full rounded px-3 py-2" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-cyber-muted mb-1">{{ t('tcp.modalLb') }}</label>
+                                <select v-model="form.loadBalancingPolicy" class="cyber-select w-full rounded px-3 py-2">
+                                    <option value="RoundRobin">RoundRobin</option>
+                                    <option value="Random">Random</option>
+                                    <option value="WeightedRoundRobin">WeightedRoundRobin</option>
+                                    <option value="IPHash">IPHash</option>
+                                    <option value="LeastRequests">LeastRequests</option>
+                                    <option value="PowerOfTwoChoices">PowerOfTwoChoices</option>
+                                    <option value="FirstAlphabetical">FirstAlphabetical</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-2 border border-[#1e1e3a] p-3 rounded">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-xs text-cyber-muted">{{ t('tcp.destinations') }}</label>
+                                <button type="button" @click="form.destinations.push({targetHost:'', targetPort:80, weight:1})" class="text-[10px] text-cyber-cyan hover:underline uppercase">{{ t('tcp.addNode') }}</button>
+                            </div>
+                            <div v-for="(dest, idx) in form.destinations" :key="idx" class="flex space-x-2 mb-2 items-center">
+                                <input v-model="dest.targetHost" type="text" class="cyber-input flex-1 rounded px-2 py-1 text-xs" placeholder="Host/IP">
+                                <input v-model.number="dest.targetPort" type="number" class="cyber-input w-20 rounded px-2 py-1 text-xs" placeholder="Port">
+                                <input v-model.number="dest.weight" type="number" class="cyber-input w-16 rounded px-2 py-1 text-xs" placeholder="Weight">
+                                <button type="button" @click="testTcpConnection(dest)" :disabled="testingConnection || !dest.targetHost || !dest.targetPort" class="text-[10px] text-cyber-purple hover:underline px-1">TEST</button>
+                                <button type="button" @click="form.destinations.splice(idx,1)" class="text-cyber-red px-1">&times;</button>
+                            </div>
+                            <div v-if="!form.destinations || form.destinations.length === 0" class="text-[10px] text-cyber-red">At least one node is required</div>
+                        </div>
+                        <div v-if="form.id" class="flex items-center space-x-2 mt-2">
+                            <input type="checkbox" v-model="form.isEnabled" id="tcpenable" class="cyber-checkbox">
+                            <label for="tcpenable" class="text-xs text-white ml-2">{{ t('common.enabled') }}</label>
+                        </div>
+                    </template>
+
+                    <!-- Key Form -->
+                    <template v-if="modal.type === 'key'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('keys.modalName') }}</label>
+                            <input v-model="form.name" type="text" class="cyber-input w-full rounded px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('keys.role') }} *</label>
+                            <select v-model="form.role" class="cyber-select w-full rounded px-3 py-2" required>
+                                <option value="Admin">Admin</option>
+                                <option value="ReadOnly">ReadOnly</option>
+                            </select>
+                        </div>
+                        <div v-if="form.id" class="flex items-center space-x-2 mt-2">
+                            <input type="checkbox" v-model="form.isEnabled" id="kenable" class="cyber-checkbox">
+                            <label for="kenable" class="text-xs text-white ml-2">{{ t('common.enabled') }}</label>
+                        </div>
+                        <div v-if="!form.id" class="mt-4 p-3 bg-cyber-cyan/10 border border-cyber-cyan/30 rounded text-cyber-cyan text-xs">
+                            {{ t('keys.modalNote') }}
+                        </div>
+                    </template>
+
+                </div>
+                <div class="p-5 border-t border-[#1e1e3a] flex justify-end space-x-3">
+                    <button @click="closeModal" class="px-4 py-2 rounded border border-[#1e1e3a] text-cyber-muted hover:text-white hover:border-cyber-cyan transition-colors text-sm font-mono uppercase">{{ t('common.cancel') }}</button>
+                    <button @click="submitModal" class="px-4 py-2 rounded bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan font-bold hover:bg-cyber-cyan hover:text-cyber-bg hover:shadow-neon transition-all text-sm font-mono uppercase">{{ t('common.save') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key 閺勫墽銇氬鍦崶 -->
+        <div v-if="newKeyResult" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div class="glass-panel neon-border w-full max-w-md rounded-xl p-6 text-center shadow-neon">
+                <h3 class="font-display font-bold text-xl text-cyber-green mb-2">{{ t('keys.createdTitle') }}</h3>
+                <p class="text-cyber-muted text-sm font-mono mb-4">{{ t('keys.createdDesc') }}</p>
+                <div class="bg-cyber-bg border border-cyber-green p-4 rounded font-mono text-cyber-text text-lg break-all select-all mb-6 shadow-neon-green">
+                    {{ newKeyResult }}
+                </div>
+                <button @click="newKeyResult = null" class="px-6 py-2 rounded bg-cyber-green/10 border border-cyber-green text-cyber-green font-bold hover:bg-cyber-green hover:text-cyber-bg transition-all uppercase tracking-widest text-sm font-mono">{{ t('keys.createdBtn') }}</button>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div v-if="toast.show" 
+            :class="['fixed top-4 right-4 z-[100] px-4 py-3 rounded border font-mono text-sm shadow-neon flex items-center', toast.isError ? 'bg-cyber-red/10 border-cyber-red text-cyber-red shadow-neon-red' : 'bg-cyber-cyan/10 border-cyber-cyan text-cyber-cyan']">
+            <span class="mr-2">{{ toast.isError ? '!' : '\u2713' }}</span>
+            {{ toast.message }}
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+
+        const messages = {
+            'en-US': {
+                title: 'ProxyYARP - Server Management',
+                login: {
+                    title: 'PROXY YARP',
+                    subtitle: 'GATEWAY ACCESS',
+                    keyLabel: 'Access Key',
+                    keyPlaceholder: 'Enter your key...',
+                    btnAuthenticating: 'AUTHENTICATING...',
+                    btnLogin: 'LOGIN',
+                    authSuccess: 'Authentication Successful',
+                    invalidKey: 'Invalid Access Key',
+                    sessionExpired: 'Session expired, please login again.'
+                },
+                nav: {
+                    adminConsole: 'Admin Console',
+                    user: 'User',
+                    logout: 'Logout',
+                    clusters: 'Clusters & Nodes',
+                    routes: 'Proxy Routes',
+                    tcp: 'L4 Proxies',
+                    keys: 'Access Keys',
+                    help: 'Help & Tricks'
+                },
+                common: {
+                    edit: 'Edit',
+                    del: 'Del',
+                    cancel: 'Cancel',
+                    save: 'Save',
+                    enabled: 'Enabled',
+                    status: 'Status',
+                    actions: 'Actions',
+                    loadingData: 'LOADING DATA...',
+                    successCreate: 'Successfully created',
+                    successUpdate: 'Successfully updated',
+                    successDelete: 'Deleted successfully',
+                    confirmDelete: 'Are you sure you want to delete this item?'
+                },
+                clusters: {
+                    title: 'Clusters',
+                    desc: 'Manage load balancing clusters and destinations.',
+                    newBtn: '+ New Cluster',
+                    healthCheck: 'Health Check',
+                    destinations: 'Destinations',
+                    addNode: '+ Add Node',
+                    noConfig: 'No clusters configured.',
+                    noDestConfig: 'No destinations configured',
+                    health: 'Health',
+                    modalClusterTitle: 'Cluster',
+                    modalClusterId: 'Cluster ID *',
+                    modalLb: 'Load Balancing',
+                    modalHc: 'Health Check Settings (Optional JSON)',
+                    modalDestTitle: 'Destination',
+                    modalDestId: 'Destination ID (Leave empty to auto-generate)',
+                    modalAddress: 'Address *',
+                    modalHealthUrl: 'Health URL (Optional)'
+                },
+                routes: {
+                    title: 'Routes',
+                    desc: 'Map incoming requests to specific clusters.',
+                    newBtn: '+ New Route',
+                    routeId: 'Route ID',
+                    matchPath: 'Match Path',
+                    hosts: 'Hosts',
+                    clusterId: 'Cluster ID',
+                    order: 'Order',
+                    noConfig: 'No routes configured.',
+                    modalTitle: 'Route',
+                    modalTarget: 'Target Cluster ID *',
+                    modalPath: 'Match Path *',
+                    modalMethods: 'Methods (comma separated)'
+                },
+                tcp: {
+                    title: 'L4 TCP Proxies',
+                    desc: 'Manage raw TCP port forwarding without HTTP overhead.',
+                    newBtn: '+ New TCP Proxy',
+                    routeId: 'Name / ID',
+                    listenPort: 'Listen Port',
+                    policy: 'LB Policy',
+                    target: 'Targets',
+                    noConfig: 'No TCP proxies configured.',
+                    modalTitle: 'TCP Proxy',
+                    protocol: 'Protocol',
+                    modalProtocol: 'Protocol *',
+                    modalListenPort: 'Local Listen Port *',
+                    modalLb: 'Load Balancing Policy',
+                    destinations: 'Target Nodes',
+                    addNode: '+ Add Node',
+                    testBtn: 'Test Connection',
+                    testing: 'Testing...'
+                },
+                keys: {
+                    title: 'API Keys',
+                    desc: 'Manage access tokens for this control plane.',
+                    newBtn: '+ New Key',
+                    accessDenied: 'ACCESS DENIED',
+                    accessDeniedDesc: 'You need Admin role to view API Keys.',
+                    name: 'Name',
+                    role: 'Role',
+                    keyPrefix: 'Key Prefix',
+                    lastUsed: 'Last Used',
+                    never: 'Never',
+                    modalTitle: 'API Key',
+                    modalName: 'Key Name *',
+                    modalNote: 'Note: The actual Key value will only be shown once after creation.',
+                    createdTitle: 'Key Created Successfully',
+                    createdDesc: 'Please copy this key now. It will never be shown again.',
+                    createdBtn: 'I have saved it'
+                },
+                help: {
+                    title: 'Help & Tricks',
+                    desc: 'Learn about YARP routing logic and proxy tips.',
+                    q1Title: 'Route Wildcards: /{**catch-all}',
+                    q1Desc: 'In YARP, the <code>{**catch-all}</code> syntax is used to match the remaining parts of a URL path, including any slashes <code>/</code>.',
+                    q2Title: 'Default Forwarding Behavior',
+                    q2Desc: 'By default, YARP appends the matched path to the target destination address. For example, if your route is <code>/demo/{**catch-all}</code> and destination is <code>https://httpbin.org</code>, accessing <code>/demo/get</code> will be forwarded to <code>https://httpbin.org/demo/get</code>.',
+                    q3Title: 'Transforms: PathRemovePrefix',
+                    q3Desc: 'If you want to map <code>/demo</code> to the root <code>/</code> of the target, you can use Transforms. By setting the Metadata to <code>[{"PathRemovePrefix": "/demo"}]</code>, YARP will strip "/demo" from the matched path before forwarding. So <code>/demo/api/users</code> becomes just <code>/api/users</code> when sent to the backend.',
+                    q4Title: 'Same Path, Different Domains (Hosts)',
+                    q4Desc: 'ProxyYARP fully supports routing to different clusters based on the requested domain name, even if the paths are identical. Simply create multiple routes with the same <code>Match Path</code> but specify different domains in the <code>Hosts</code> field, and point them to their respective <code>Target Cluster ID</code>.'
+                }
+            },
+            'zh-CN': {
+                title: 'ProxyYARP - 服务端管理',
+                login: {
+                    title: 'PROXY YARP',
+                    subtitle: '网关接入',
+                    keyLabel: '访问密钥',
+                    keyPlaceholder: '请输入密钥...',
+                    btnAuthenticating: '验证中...',
+                    btnLogin: '登录',
+                    authSuccess: '验证成功',
+                    invalidKey: '无效的密钥',
+                    sessionExpired: '会话已过期，请重新登录。'
+                },
+                nav: {
+                    adminConsole: '管理控制台',
+                    user: '用户',
+                    logout: '退出登录',
+                    clusters: '集群与节点',
+                    routes: '代理路由',
+                    tcp: '四层代理',
+                    keys: '访问密钥',
+                    help: '帮助与技巧'
+                },
+                common: {
+                    edit: '编辑',
+                    del: '删除',
+                    cancel: '取消',
+                    save: '保存',
+                    enabled: '启用',
+                    status: '状态',
+                    actions: '操作',
+                    loadingData: '加载数据中...',
+                    successCreate: '创建成功',
+                    successUpdate: '更新成功',
+                    successDelete: '删除成功',
+                    confirmDelete: '您确定要删除此项吗？'
+                },
+                clusters: {
+                    title: '集群管理',
+                    desc: '管理负载均衡集群及其背后的目标节点 (Destinations)。',
+                    newBtn: '+ 新建集群',
+                    healthCheck: '健康检查',
+                    destinations: '目标节点 (Destinations)',
+                    addNode: '+ 添加节点',
+                    noConfig: '尚未配置集群。',
+                    noDestConfig: '尚未配置目标节点',
+                    health: '健康状态',
+                    modalClusterTitle: '集群配置',
+                    modalClusterId: '集群 ID *',
+                    modalLb: '负载均衡策略',
+                    modalHc: '健康检查配置 (可选 JSON)',
+                    modalDestTitle: '目标节点',
+                    modalDestId: '节点 ID (留空自动生成)',
+                    modalAddress: '目标地址 *',
+                    modalHealthUrl: '健康检查 URL (可选)'
+                },
+                routes: {
+                    title: '路由配置',
+                    desc: '配置请求拦截规则并将其映射到对应的集群。',
+                    newBtn: '+ 新建路由',
+                    routeId: '路由 ID',
+                    matchPath: '匹配路径',
+                    hosts: '域名 (Hosts)',
+                    clusterId: '目标集群 ID',
+                    order: '优先级',
+                    noConfig: '尚未配置路由。',
+                    modalTitle: '路由配置',
+                    modalTarget: '目标集群 ID *',
+                    modalPath: '匹配路径 *',
+                    modalMethods: '请求方法 (逗号分隔)'
+                },
+                tcp: {
+                    title: '四层 TCP/UDP 代理',
+                    desc: '管理纯 Socket 层的 TCP/UDP 端口转发，无 HTTP 性能损耗。',
+                    newBtn: '+ 新建四层代理',
+                    routeId: '名称 / ID',
+                    protocol: '协议',
+                    listenPort: '本地监听端口',
+                    policy: '负载策略',
+                    target: '目标节点',
+                    noConfig: '尚未配置四层代理。',
+                    modalTitle: '四层代理配置',
+                    modalProtocol: '协议 *',
+                    modalListenPort: '本地监听端口 *',
+                    modalLb: '负载均衡策略',
+                    destinations: '目标节点列表',
+                    addNode: '+ 添加节点',
+                    testBtn: '测试连通性',
+                    testing: '探测中...'
+                },
+                keys: {
+                    title: 'API 密钥',
+                    desc: '管理用于登录此控制台的 API 密钥。',
+                    newBtn: '+ 新建密钥',
+                    accessDenied: '拒绝访问',
+                    accessDeniedDesc: '您需要 Admin 权限才能查看 API 密钥。',
+                    name: '名称',
+                    role: '角色',
+                    keyPrefix: '密钥前缀',
+                    lastUsed: '最后使用时间',
+                    never: '从未',
+                    modalTitle: 'API 密钥配置',
+                    modalName: '密钥名称 *',
+                    modalNote: '注意：密钥明文只会在创建成功时显示一次，请务必妥善保存。',
+                    createdTitle: '密钥创建成功',
+                    createdDesc: '请立即复制并保存此密钥。出于安全原因，它将永远不会再次显示。',
+                    createdBtn: '我已保存'
+                },
+                help: {
+                    title: '帮助与技巧',
+                    desc: '了解 YARP 的路由逻辑以及代理技巧。',
+                    q1Title: '路由通配符规则：/{**catch-all}',
+                    q1Desc: '在 YARP（以及 ASP.NET Core 路由）中，<code>{**catch-all}</code> 语法用于匹配 URL 路径的剩余所有部分，包括任何深度的斜杠 <code>/</code>。这使得网关能够捕获一个前缀下的所有请求并完美转发。',
+                    q2Title: '默认的路径透传行为',
+                    q2Desc: '默认情况下，YARP 会将匹配到的请求路径直接原样附加到目标地址 (Destination) 后面。例如，当您的路由配置为 <code>/demo/{**catch-all}</code> 且目标节点为 <code>https://httpbin.org</code> 时，访问 <code>http://localhost:8080/demo/get</code> 会被代理转发到 <code>https://httpbin.org/demo/get</code>。',
+                    q3Title: 'Transforms 转换器：PathRemovePrefix',
+                    q3Desc: '如果您想把 <code>/demo</code> 映射到目标站点的根路径 <code>/</code>，这是非常典型的重写需求。在 YARP 中，您可以通过在路由的 Metadata（元数据）中配置 Transforms 来实现。填入 <code>[{"PathRemovePrefix": "/demo"}]</code> 后，YARP 会在转发前自动剥离这段前缀，从而实现完美的去前缀转发。',
+                    q4Title: '多域名路由 (同路径，不同集群)',
+                    q4Desc: 'ProxyYARP 完美支持针对不同请求域名（Host），将相同路径映射到不同集群的需求。只需在【路由管理】中新建多条路由，配置相同的 <code>匹配路径</code>，但在 <code>域名 (Hosts)</code> 字段填入各自的域名，并指向不同的目标集群即可。YARP 会严格根据请求头中的 Host 字段进行流量分发。'
+                }
+            }        };
+
+        const api = {
+            async fetch(url, options = {}) {
+                options.credentials = 'same-origin';
+                if(!options.headers) options.headers = {};
+                options.headers['Accept'] = 'application/json';
+                if(options.body && typeof options.body === 'object') {
+                    options.body = JSON.stringify(options.body);
+                    options.headers['Content-Type'] = 'application/json';
+                }
+                const res = await fetch(url, options);
+                if (res.status === 401) {
+                    throw new Error("UNAUTHORIZED");
+                }
+                if (!res.ok) {
+                    const err = await res.json().catch(()=>({}));
+                    throw new Error(err.error || `HTTP ${res.status}`);
+                }
+                if(res.status === 204) return null;
+                return res.json().catch(()=>null);
+            }
+        };
+
+        createApp({
+            setup() {
+                // i18n
+                const locale = ref(localStorage.getItem('lang') || 'zh-CN');
+                const toggleLocale = () => {
+                    locale.value = locale.value === 'zh-CN' ? 'en-US' : 'zh-CN';
+                    localStorage.setItem('lang', locale.value);
+                    document.title = t('title');
+                };
+                const t = (key) => {
+                    const dict = messages[locale.value] || messages['en-US'];
+                    return key.split('.').reduce((o, i) => o?.[i], dict) || key;
+                };
+
+                // State
+                const isAuthenticated = ref(false);
+                const currentUser = ref(null);
+                const loading = ref(false);
+                const loginKey = ref('');
+                const loginError = ref('');
+
+                const currentView = ref('clusters'); // clusters, routes, keys, help
+                const loadingData = ref(false);
+
+                // Data
+                const clusters = ref([]);
+                const destinations = ref([]);
+                const routes = ref([]);
+                const tcpRoutes = ref([]);
+                const keys = ref([]);
+
+                // Nav
+                const navItems = [
+                    { id: 'clusters', nameKey: 'nav.clusters', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
+                    { id: 'routes', nameKey: 'nav.routes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>' },
+                    { id: 'tcp', nameKey: 'nav.tcp', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' },
+                    { id: 'keys', nameKey: 'nav.keys', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>' },
+                    { id: 'help', nameKey: 'nav.help', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' }
+                ];
+
+                const isAdmin = computed(() => currentUser.value?.role === 'Admin');
+                const clusterDests = computed(() => (clusterId) => destinations.value.filter(d => d.clusterId === clusterId));
+
+                // Toast
+                const toast = reactive({ show: false, message: '', isError: false });
+                const showToast = (msg, isErr = false) => {
+                    toast.message = msg; toast.isError = isErr; toast.show = true;
+                    setTimeout(() => { toast.show = false; }, 3000);
+                };
+                const handleError = (e) => {
+                    if(e.message === 'UNAUTHORIZED') {
+                        isAuthenticated.value = false;
+                        currentUser.value = null;
+                        showToast(t('login.sessionExpired'), true);
+                    } else {
+                        showToast(e.message, true);
+                    }
+                };
+
+                // Modal
+                const modal = reactive({ show: false, type: '', title: '' });
+                const form = reactive({});
+                let currentParentId = null; 
+                const newKeyResult = ref(null);
+
+                const openModal = (type, title, data = null, parentId = null) => {
+                    modal.type = type;
+                    modal.title = title;
+                    modal.show = true;
+                    currentParentId = parentId;
+                    Object.keys(form).forEach(k => delete form[k]);
+                    if(data) {
+                        Object.assign(form, JSON.parse(JSON.stringify(data)));
+                    } else {
+                        if(type==='cluster') { form.loadBalancing = 'RoundRobin'; form.isEnabled = true; }
+                        if(type==='route') { form.order = 0; form.isEnabled = true; }
+                        if(type==='tcp') { 
+                            form.protocol = 'TCP';
+                            form.listenPort = 8081; 
+                            form.loadBalancingPolicy = 'RoundRobin';
+                            form.destinations = [{targetHost: '', targetPort: 80, weight: 1}];
+                            form.isEnabled = true; 
+                        }
+                        if(type==='key') { form.role = 'ReadOnly'; form.isEnabled = true; }
+                        if(type==='dest') { form.isEnabled = true; }
+                    }
+                };
+                const closeModal = () => { modal.show = false; };
+
+                // Actions
+                const checkAuth = async () => {
+                    try {
+                        const user = await api.fetch('/api/auth/me');
+                        currentUser.value = user;
+                        isAuthenticated.value = true;
+                        loadData();
+                    } catch (e) {
+                        isAuthenticated.value = false;
+                    }
+                };
+
+                const login = async () => {
+                    if(!loginKey.value) return;
+                    loading.value = true; loginError.value = '';
+                    try {
+                        await api.fetch('/api/auth/login', { method:'POST', body: { apiKey: loginKey.value }});
+                        await checkAuth();
+                        loginKey.value = '';
+                        showToast(t('login.authSuccess'));
+                    } catch(e) {
+                        loginError.value = e.message === 'UNAUTHORIZED' ? t('login.invalidKey') : e.message;
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const logout = async () => {
+                    try { await api.fetch('/api/auth/logout', { method:'POST' }); } catch(e){}
+                    isAuthenticated.value = false; currentUser.value = null;
+                };
+
+                const loadData = async () => {
+                    if(!isAuthenticated.value) return;
+                    // Don't load if on Help view
+                    if(currentView.value === 'help') return;
+
+                    loadingData.value = true;
+                    try {
+                        if(currentView.value === 'clusters') {
+                            clusters.value = await api.fetch('/api/clusters');
+                            destinations.value = await api.fetch('/api/clusters/destinations');
+                        } else if(currentView.value === 'routes') {
+                            routes.value = await api.fetch('/api/routes');
+                        } else if(currentView.value === 'tcp') {
+                            tcpRoutes.value = await api.fetch('/api/tcp-routes');
+                        } else if(currentView.value === 'keys' && isAdmin.value) {
+                            keys.value = await api.fetch('/api/keys');
+                        }
+                    } catch(e) { handleError(e); }
+                    finally { loadingData.value = false; }
+                };
+
+                watch(currentView, loadData);
+
+                // CRUD Modals
+                const openClusterModal = (c) => openModal('cluster', c ? t('common.edit') + ' ' + t('clusters.modalClusterTitle') : t('clusters.newBtn'), c);
+                const openDestModal = (clusterId, d) => openModal('dest', d ? t('common.edit') + ' ' + t('clusters.modalDestTitle') : t('clusters.addNode'), d, clusterId);
+                const openRouteModal = (r) => openModal('route', r ? t('common.edit') + ' ' + t('routes.modalTitle') : t('routes.newBtn'), r);
+                const openTcpRouteModal = (r) => openModal('tcp', r ? t('common.edit') + ' ' + t('tcp.modalTitle') : t('tcp.newBtn'), r);
+                const openKeyModal = (k) => openModal('key', k ? t('common.edit') + ' ' + t('keys.modalTitle') : t('keys.newBtn'), k);
+
+                const testingConnection = ref(false);
+                const testTcpConnection = async (dest) => {
+                    if (!dest.targetHost || !dest.targetPort) return;
+                    testingConnection.value = true;
+                    try {
+                        const res = await api.fetch('/api/tcp-routes/test-connection', { 
+                            method: 'POST', 
+                            body: { targetHost: dest.targetHost, targetPort: dest.targetPort } 
+                        });
+                        showToast(res.message);
+                    } catch(e) {
+                        showToast(e.message, true);
+                    } finally {
+                        testingConnection.value = false;
+                    }
+                };
+
+                const submitModal = async () => {
+                    try {
+                        const isEdit = !!form.id;
+                        let url = '', method = isEdit ? 'PUT' : 'POST';
+                        
+                        if(modal.type === 'cluster') {
+                            url = isEdit ? `/api/clusters/${form.id}` : '/api/clusters';
+                        } else if (modal.type === 'dest') {
+                            url = isEdit ? `/api/clusters/destinations/${form.id}` : `/api/clusters/${currentParentId}/destinations`;
+                        } else if (modal.type === 'route') {
+                            url = isEdit ? `/api/routes/${form.id}` : '/api/routes';
+                        } else if (modal.type === 'tcp') {
+                            url = isEdit ? `/api/tcp-routes/${form.id}` : '/api/tcp-routes';
+                        } else if (modal.type === 'key') {
+                            url = isEdit ? `/api/keys/${form.id}` : '/api/keys';
+                        }
+
+                        const res = await api.fetch(url, { method, body: form });
+                        showToast(isEdit ? t('common.successUpdate') : t('common.successCreate'));
+                        closeModal();
+                        
+                        if(!isEdit && modal.type === 'key' && res && res.keyValue) {
+                            newKeyResult.value = res.keyValue;
+                        }
+
+                        loadData();
+                    } catch(e) {
+                        showToast(e.message, true);
+                    }
+                };
+
+                const doDelete = async (url) => {
+                    if(!confirm(t('common.confirmDelete'))) return;
+                    try {
+                        await api.fetch(url, { method: 'DELETE' });
+                        showToast(t('common.successDelete'));
+                        loadData();
+                    } catch(e) { handleError(e); }
+                };
+
+                const deleteCluster = (id) => doDelete(`/api/clusters/${id}`);
+                const deleteDest = (id) => doDelete(`/api/clusters/destinations/${id}`);
+                const deleteRoute = (id) => doDelete(`/api/routes/${id}`);
+                const deleteTcpRoute = (id) => doDelete(`/api/tcp-routes/${id}`);
+                const deleteKey = (id) => doDelete(`/api/keys/${id}`);
+
+                onMounted(() => {
+                    document.title = t('title');
+                    checkAuth();
+                });
+
+                return {
+                    locale, toggleLocale, t,
+                    isAuthenticated, currentUser, loading, loginKey, loginError, login, logout,
+                    currentView, navItems, loadingData, isAdmin,
+                    clusters, destinations, routes, tcpRoutes, keys, clusterDests,
+                    toast, modal, form, closeModal, submitModal, newKeyResult,
+                    testingConnection, testTcpConnection,
+                    openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,
+                    deleteCluster, deleteDest, deleteRoute, deleteTcpRoute, deleteKey
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
+

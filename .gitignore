@@ -1,0 +1,25 @@
+# Build outputs
+bin/
+obj/
+out/
+publish/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# IDE
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc temp files
+index_body.html
+index_downloaded.html
+refactor.cs
+repair.py
+test.cs

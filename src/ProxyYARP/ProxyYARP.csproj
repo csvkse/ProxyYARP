@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+    <Version>1.0.0</Version>
+    <AssemblyName>ProxyYARP</AssemblyName>
+    <!-- Dapper.AOT source generator interception -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Dapper.AOT</InterceptorsNamespaces>
+    <!-- Suppress trimming warnings from YARP/Dapper that are known-safe -->
+    <TrimmerRootDescriptor>rd.xml</TrimmerRootDescriptor>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy"         Version="2.3.0" />
+    <PackageReference Include="Dapper"                    Version="2.1.35" />
+    <PackageReference Include="Dapper.AOT"                Version="1.0.52" />
+    <PackageReference Include="Microsoft.Data.Sqlite"     Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="9.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
+
+  </ItemGroup>
+
+  <!-- Suppress known-safe AOT warnings from YARP/ASP.NET internals -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <!-- Embed wwwroot into the binary -->
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot/**/*" />
+  </ItemGroup>
+
+  <!-- AOT reflection descriptor -->
+  <ItemGroup>
+    <None Remove="rd.xml" />
+    <Content Include="rd.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <RdXmlFile Include="rd.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProxyYARP — 集群管理</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2128;
+      --border: #30363d; --accent: #58a6ff; --accent-dim: #1f6feb;
+      --text: #c9d1d9; --text-dim: #8b949e;
+      --success: #3fb950; --warn: #d29922; --error: #f85149;
+      --radius: 10px; --nav-w: 220px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; min-height: 100vh; }
+    .sidebar { width: var(--nav-w); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+    .sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; }
+    .brand-icon { width: 32px; height: 32px; }
+    .brand-title { font-size: 15px; font-weight: 700; }
+    .brand-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-label { font-size: 11px; font-weight: 600; color: var(--text-dim); padding: 8px 20px 4px; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 14px;
+      color: var(--text-dim); cursor: pointer; text-decoration: none; transition: all .15s;
+      border-left: 3px solid transparent; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(88,166,255,.1); color: var(--accent); border-left-color: var(--accent); }
+    .nav-item svg { width: 16px; height: 16px; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+    .logout-btn { width: 100%; padding: 7px; background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-dim); font-size: 13px; cursor: pointer; transition: all .15s; }
+    .logout-btn:hover { border-color: var(--error); color: var(--error); }
+    .main { margin-left: var(--nav-w); flex: 1; display: flex; flex-direction: column; }
+    .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
+    .page-title { font-size: 17px; font-weight: 600; }
+    .content { padding: 28px; }
+    .cluster-grid { display: grid; gap: 20px; }
+    .cluster-card { background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; }
+    .cluster-header { padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .cluster-info { display: flex; align-items: center; gap: 12px; }
+    .cluster-name { font-size: 14px; font-weight: 600; }
+    .cluster-meta { font-size: 12px; color: var(--text-dim); }
+    .cluster-actions { display: flex; gap: 8px; }
+    .dest-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .dest-table th { padding: 9px 16px; text-align: left; font-size: 11px; font-weight: 600;
+      color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid var(--border);
+      background: var(--surface2); }
+    .dest-table td { padding: 10px 16px; border-bottom: 1px solid rgba(48,54,61,.5); }
+    .dest-table tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: rgba(63,185,80,.15); color: var(--success); }
+    .badge-red { background: rgba(248,81,73,.15); color: var(--error); }
+    .badge-blue { background: rgba(88,166,255,.15); color: var(--accent); }
+    .btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 13px;
+      font-weight: 500; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: var(--accent-dim); color: #fff; }
+    .btn-primary:hover { background: var(--accent); }
+    .btn-danger { background: rgba(248,81,73,.15); color: var(--error); }
+    .btn-danger:hover { background: rgba(248,81,73,.3); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    code { font-family: monospace; font-size: 11px; background: var(--surface2);
+      padding: 1px 5px; border-radius: 3px; color: var(--accent); }
+    .empty { text-align: center; padding: 24px; color: var(--text-dim); font-size: 13px; }
+    .add-dest-row { padding: 10px 16px; border-top: 1px solid var(--border); }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100;
+      display: flex; align-items: center; justify-content: center; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      width: 500px; max-width: 95vw; padding: 28px; }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+    .form-field { margin-bottom: 15px; }
+    label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; font-weight: 500; }
+    .form-input { width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: 13px; outline: none; transition: border-color .2s; }
+    .form-input:focus { border-color: var(--accent); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+    .toast-success { background: rgba(63,185,80,.2); border: 1px solid var(--success); color: var(--success); }
+    .toast-error { background: rgba(248,81,73,.2); border: 1px solid var(--error); color: var(--error); }
+    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px; cursor: pointer; transition: .3s; }
+    .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px;
+      left: 3px; top: 3px; background: white; border-radius: 50%; transition: .3s; }
+    input:checked + .toggle-slider { background: var(--accent-dim); }
+    input:checked + .toggle-slider:before { transform: translateX(16px); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <svg class="brand-icon" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14" stroke="#58a6ff" stroke-width="1.5" fill="none"/>
+        <path d="M8 16 L16 8 L24 16 L16 24 Z" fill="#58a6ff" opacity="0.2"/>
+        <circle cx="16" cy="16" r="4" fill="#58a6ff"/>
+      </svg>
+      <div><div class="brand-title">ProxyYARP</div><div class="brand-sub">反向代理管理</div></div>
+    </div>
+    <div class="nav">
+      <div class="nav-label">管理</div>
+      <a href="/index.html" class="nav-item"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>仪表盘</a>
+      <a href="/routes.html" class="nav-item"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 1a1 1 0 0 0-1 1v.5a.5.5 0 0 0 1 0V2h9v.5a.5.5 0 0 0 1 0V2a1 1 0 0 0-1-1H3zm-.5 5a.5.5 0 0 0 0 1h11a.5.5 0 0 0 0-1h-11zm0 4a.5.5 0 0 0 0 1h11a.5.5 0 0 0 0-1h-11zm0 4a.5.5 0 0 0 0 1h11a.5.5 0 0 0 0-1h-11z"/></svg>路由管理</a>
+      <a href="/clusters.html" class="nav-item active"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 8a4 4 0 1 1 8 0 4 4 0 0 1-8 0z"/><path d="M2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/></svg>集群管理</a>
+      <a href="/keys.html" class="nav-item"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8zm4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5z"/></svg>Key 管理</a>
+    </div>
+    <div class="sidebar-footer">
+      <button class="logout-btn" @click="logout">退出登录</button>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title">集群管理</div>
+      <button class="btn btn-primary" @click="openCreateCluster" v-if="isAdmin">+ 新建集群</button>
+    </div>
+    <div class="content">
+      <div v-if="loading" class="empty">加载中...</div>
+      <div v-else-if="clusters.length === 0" class="empty">暂无集群，点击右上角新建</div>
+      <div class="cluster-grid" v-else>
+        <div class="cluster-card" v-for="c in clusters" :key="c.id">
+          <div class="cluster-header">
+            <div class="cluster-info">
+              <div>
+                <div class="cluster-name">
+                  <code>{{ c.clusterId }}</code>
+                  <span class="badge badge-blue" style="margin-left:8px">{{ c.loadBalancing }}</span>
+                  <span class="badge" :class="c.isEnabled ? 'badge-green' : 'badge-red'" style="margin-left:4px">
+                    {{ c.isEnabled ? '启用' : '禁用' }}
+                  </span>
+                </div>
+                <div class="cluster-meta">{{ getDestCount(c.clusterId) }} 个目标节点</div>
+              </div>
+            </div>
+            <div class="cluster-actions" v-if="isAdmin">
+              <button class="btn btn-ghost btn-sm" @click="openAddDest(c)">+ 添加节点</button>
+              <button class="btn btn-ghost btn-sm" @click="openEditCluster(c)">编辑</button>
+              <button class="btn btn-danger btn-sm" @click="deleteCluster(c)">删除</button>
+            </div>
+          </div>
+          <!-- 目标节点列表 -->
+          <table class="dest-table" v-if="getClusterDests(c.clusterId).length > 0">
+            <thead><tr>
+              <th>节点 ID</th><th>地址</th><th>健康检查</th><th>状态</th><th v-if="isAdmin">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="d in getClusterDests(c.clusterId)" :key="d.id">
+                <td><code>{{ d.destId }}</code></td>
+                <td><a :href="d.address" target="_blank" style="color:var(--accent);text-decoration:none">{{ d.address }}</a></td>
+                <td>{{ d.health || '-' }}</td>
+                <td>
+                  <span class="badge" :class="d.isEnabled ? 'badge-green' : 'badge-red'">
+                    {{ d.isEnabled ? '在线' : '停用' }}
+                  </span>
+                </td>
+                <td v-if="isAdmin">
+                  <button class="btn btn-danger btn-sm" @click="deleteDest(d)">移除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="empty" v-else>此集群暂无目标节点</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 集群弹窗 -->
+  <div class="modal-overlay" v-if="showClusterModal" @click.self="showClusterModal=false">
+    <div class="modal">
+      <div class="modal-title">{{ editClusterId ? '编辑集群' : '新建集群' }}</div>
+      <div class="form-field">
+        <label>集群 ID *</label>
+        <input class="form-input" v-model="clusterForm.clusterId" placeholder="backend-cluster">
+      </div>
+      <div class="form-field">
+        <label>负载均衡策略</label>
+        <select class="form-input" v-model="clusterForm.loadBalancing">
+          <option>RoundRobin</option>
+          <option>LeastRequests</option>
+          <option>Random</option>
+          <option>FirstAlphabetical</option>
+          <option>PowerOfTwoChoices</option>
+        </select>
+      </div>
+      <div class="form-field" style="display:flex;align-items:center;gap:10px;">
+        <label style="margin-bottom:0">启用</label>
+        <label class="toggle">
+          <input type="checkbox" v-model="clusterForm.isEnabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" @click="showClusterModal=false">取消</button>
+        <button class="btn btn-primary" @click="saveCluster" :disabled="saving">{{ saving ? '保存中...' : '保存' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 目标节点弹窗 -->
+  <div class="modal-overlay" v-if="showDestModal" @click.self="showDestModal=false">
+    <div class="modal">
+      <div class="modal-title">添加目标节点 → <code>{{ destTargetCluster }}</code></div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>节点 ID（留空自动生成）</label>
+          <input class="form-input" v-model="destForm.destId" placeholder="dest-1">
+        </div>
+        <div class="form-field">
+          <label>目标地址 *</label>
+          <input class="form-input" v-model="destForm.address" placeholder="http://backend:8080">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>健康检查地址（可选）</label>
+        <input class="form-input" v-model="destForm.health" placeholder="http://backend:8080/health">
+        <div class="form-hint">YARP 会定期 GET 此地址，非 2xx 则摘除节点</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" @click="showDestModal=false">取消</button>
+        <button class="btn btn-primary" @click="saveDest" :disabled="saving">{{ saving ? '添加中...' : '添加节点' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="toast.show" class="toast" :class="toast.type === 'success' ? 'toast-success' : 'toast-error'">{{ toast.msg }}</div>
+</div>
+
+<script type="module">
+import { createApp, ref, computed, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js';
+
+createApp({
+  setup() {
+    const apiKey = localStorage.getItem('api_key') || '';
+    const isAdmin = ref(localStorage.getItem('api_role') === 'Admin');
+    const loading = ref(true);
+    const saving = ref(false);
+    const clusters = ref([]);
+    const destinations = ref([]);
+    const showClusterModal = ref(false);
+    const showDestModal = ref(false);
+    const editClusterId = ref(null);
+    const destTargetCluster = ref('');
+    const toast = ref({ show: false, msg: '', type: 'success' });
+
+    const clusterForm = ref({ clusterId: '', loadBalancing: 'RoundRobin', isEnabled: true });
+    const destForm = ref({ destId: '', address: '', health: '' });
+
+    const headers = { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' };
+
+    function showToast(msg, type = 'success') {
+      toast.value = { show: true, msg, type };
+      setTimeout(() => toast.value.show = false, 3000);
+    }
+
+    const getClusterDests = (cid) => destinations.value.filter(d => d.clusterId === cid);
+    const getDestCount = (cid) => destinations.value.filter(d => d.clusterId === cid && d.isEnabled).length;
+
+    async function loadAll() {
+      loading.value = true;
+      if (!apiKey) { window.location.href = '/login.html'; return; }
+      try {
+        const [c, d] = await Promise.all([
+          fetch('/api/clusters', { headers }).then(r => { if (r.status===401){window.location.href='/login.html';} return r.json(); }),
+          fetch('/api/clusters/destinations', { headers }).then(r => r.json()),
+        ]);
+        clusters.value = c;
+        destinations.value = d;
+      } finally { loading.value = false; }
+    }
+
+    function openCreateCluster() {
+      clusterForm.value = { clusterId: '', loadBalancing: 'RoundRobin', isEnabled: true };
+      editClusterId.value = null; showClusterModal.value = true;
+    }
+    function openEditCluster(c) {
+      clusterForm.value = { clusterId: c.clusterId, loadBalancing: c.loadBalancing, isEnabled: c.isEnabled };
+      editClusterId.value = c.id; showClusterModal.value = true;
+    }
+
+    async function saveCluster() {
+      if (!clusterForm.value.clusterId) { showToast('集群ID必填', 'error'); return; }
+      saving.value = true;
+      try {
+        const url = editClusterId.value ? `/api/clusters/${editClusterId.value}` : '/api/clusters';
+        const method = editClusterId.value ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers, body: JSON.stringify(clusterForm.value) });
+        if (res.ok) { showToast('集群已保存，YARP 已热重载'); showClusterModal.value = false; await loadAll(); }
+        else { const e = await res.json().catch(()=>({})); showToast(e.error || '失败', 'error'); }
+      } finally { saving.value = false; }
+    }
+
+    async function deleteCluster(c) {
+      if (!confirm(`删除集群 "${c.clusterId}" 及其所有目标节点？`)) return;
+      const res = await fetch(`/api/clusters/${c.id}`, { method: 'DELETE', headers });
+      if (res.ok) { showToast('已删除'); await loadAll(); }
+      else showToast('删除失败', 'error');
+    }
+
+    function openAddDest(c) {
+      destForm.value = { destId: '', address: '', health: '' };
+      destTargetCluster.value = c.clusterId; showDestModal.value = true;
+    }
+
+    async function saveDest() {
+      if (!destForm.value.address) { showToast('地址必填', 'error'); return; }
+      saving.value = true;
+      try {
+        const body = { destId: destForm.value.destId || null, address: destForm.value.address, health: destForm.value.health || null };
+        const res = await fetch(`/api/clusters/${destTargetCluster.value}/destinations`, { method: 'POST', headers, body: JSON.stringify(body) });
+        if (res.ok) { showToast('节点已添加，YARP 已热重载'); showDestModal.value = false; await loadAll(); }
+        else { const e = await res.json().catch(()=>({})); showToast(e.error || '失败', 'error'); }
+      } finally { saving.value = false; }
+    }
+
+    async function deleteDest(d) {
+      if (!confirm(`移除目标节点 "${d.destId}"？`)) return;
+      const res = await fetch(`/api/clusters/destinations/${d.id}`, { method: 'DELETE', headers });
+      if (res.ok) { showToast('已移除，YARP 已热重载'); await loadAll(); }
+      else showToast('失败', 'error');
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST', headers });
+      localStorage.clear(); window.location.href = '/login.html';
+    }
+
+    onMounted(loadAll);
+
+    return { isAdmin, loading, saving, clusters, destinations, showClusterModal, showDestModal,
+      editClusterId, destTargetCluster, clusterForm, destForm, toast,
+      getClusterDests, getDestCount, openCreateCluster, openEditCluster, saveCluster, deleteCluster,
+      openAddDest, saveDest, deleteDest, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
