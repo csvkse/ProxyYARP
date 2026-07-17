@@ -4,7 +4,7 @@ using ProxyYARP.Serialization;
 
 namespace ProxyYARP.Api;
 
-/// <summary>霈方� API �?POST /api/auth/login</summary>
+/// <summary>认证 API：POST /api/auth/login</summary>
 public static class AuthApi
 {
     public static void MapAuthApi(this IEndpointRouteBuilder app)

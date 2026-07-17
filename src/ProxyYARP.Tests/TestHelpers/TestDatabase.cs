@@ -37,12 +37,12 @@ public sealed class TestDatabase : IDisposable
         RouteRepo   = new RouteRepository(connection);
         ClusterRepo = new ClusterRepository(connection);
         DestRepo    = new DestinationRepository(connection);
-        var tcpRouteRepo = new L4RouteRepository(connection);
-        var tcpDestRepo  = new L4DestinationRepository(connection);
+        var l4RouteRepo = new L4RouteRepository(connection);
+        var l4DestRepo  = new L4DestinationRepository(connection);
 
         KeyService    = new ApiKeyService(KeyRepo);
         ConfigService = new ProxyConfigService(RouteRepo, ClusterRepo, DestRepo);
-        InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, tcpRouteRepo, tcpDestRepo);
+        InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, l4RouteRepo, l4DestRepo);
 
         // 初始化表结构
         InitService.InitTables();

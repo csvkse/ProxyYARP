@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
@@ -55,10 +55,17 @@ public class UdpProxyEngine : BackgroundService
         {
             if (!_listeners.TryGetValue(route.ListenPort, out var ctx))
             {
-                _logger.LogInformation("Starting UDP listener on port {Port}", route.ListenPort);
-                ctx = new UdpListenerContext(route, _logger);
-                _listeners[route.ListenPort] = ctx;
-                ctx.Start();
+                try
+                {
+                    ctx = new UdpListenerContext(route, _logger);
+                    _listeners[route.ListenPort] = ctx;
+                    ctx.Start();
+                    _logger.LogInformation("Started UDP listener on port {Port}", route.ListenPort);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to start UDP listener on port {Port}", route.ListenPort);
+                }
             }
             else ctx.UpdateRoute(route);
         }

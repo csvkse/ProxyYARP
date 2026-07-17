@@ -1,4 +1,4 @@
-﻿using ProxyYARP.Serialization;
+using ProxyYARP.Serialization;
 using ProxyYARP.Auth;
 using ProxyYARP.Data.Models;
 using ProxyYARP.Data.Services;
@@ -14,8 +14,8 @@ public static class TcpRoutesApi
     {
         var group = app.MapGroup("/api/tcp-routes");
 
-        // Helper: 检查本地端口是否已被占�
-        bool IsPortInUse(int port, string? excludeId = null)
+        // Helper: 检查本地端口是否已被占用
+        bool IsPortInUse(int port)
         {
             var ipGlobalProperties = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties();
             var activeTcpListeners = ipGlobalProperties.GetActiveTcpListeners();
@@ -65,7 +65,7 @@ public static class TcpRoutesApi
 
                 var entity = svc.CreateRoute(req.RouteId, req.ListenPort, req.LoadBalancingPolicy ?? "RoundRobin", destEntities);
                 
-                // 返回完整的包�?Destinations �?dto
+                // 返回完整的包含 Destinations 的 dto
                 var createdRouteDto = svc.GetRouteById(entity.Id);
                 return Results.Created($"/api/tcp-routes/{entity.Id}", MapToDto(createdRouteDto!));
             }
@@ -135,7 +135,7 @@ public static class TcpRoutesApi
             }
             catch (OperationCanceledException)
             {
-                return Results.BadRequest(new ErrorResponse { Error = $"连接超时 (2�?，无法连接到 {req.TargetHost}:{req.TargetPort}" });
+                return Results.BadRequest(new ErrorResponse { Error = $"连接超时 (2s)，无法连接到 {req.TargetHost}:{req.TargetPort}" });
             }
             catch (Exception ex)
             {
@@ -145,7 +145,7 @@ public static class TcpRoutesApi
         });
     }
 
-    private static TcpRouteApiResponseDto MapToDto(ProxyYARP.Data.Services.TcpRouteDto d) => new()
+    private static TcpRouteApiResponseDto MapToDto(ProxyYARP.Data.Services.L4RouteDto d) => new()
     {
         Id = d.Route.Id,
         RouteId = d.Route.RouteId,

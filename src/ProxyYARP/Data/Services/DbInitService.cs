@@ -3,30 +3,30 @@ using ProxyYARP.Data.Repositories;
 
 namespace ProxyYARP.Data.Services;
 
-/// <summary>数据库初始化服务：建�?+ 种子数据</summary>
+/// <summary>数据库初始化服务：建表 + 种子数据</summary>
 public class DbInitService
 {
     private readonly ApiKeyRepository _keyRepo;
     private readonly RouteRepository _routeRepo;
     private readonly ClusterRepository _clusterRepo;
     private readonly DestinationRepository _destRepo;
-    private readonly L4RouteRepository _tcpRouteRepo;
-    private readonly L4DestinationRepository _tcpDestRepo;
+    private readonly L4RouteRepository _l4RouteRepo;
+    private readonly L4DestinationRepository _l4DestRepo;
 
     public DbInitService(
         ApiKeyRepository keyRepo,
         RouteRepository routeRepo,
         ClusterRepository clusterRepo,
         DestinationRepository destRepo,
-        L4RouteRepository tcpRouteRepo,
-        L4DestinationRepository tcpDestRepo)
+        L4RouteRepository l4RouteRepo,
+        L4DestinationRepository l4DestRepo)
     {
         _keyRepo = keyRepo;
         _routeRepo = routeRepo;
         _clusterRepo = clusterRepo;
         _destRepo = destRepo;
-        _tcpRouteRepo = tcpRouteRepo;
-        _tcpDestRepo = tcpDestRepo;
+        _l4RouteRepo = l4RouteRepo;
+        _l4DestRepo = l4DestRepo;
     }
 
     /// <summary>初始化所有表结构</summary>
@@ -36,14 +36,14 @@ public class DbInitService
         _routeRepo.CreateTable();
         _clusterRepo.CreateTable();
         _destRepo.CreateTable();
-        _tcpRouteRepo.CreateTable();
-        _tcpDestRepo.CreateTable();
+        _l4RouteRepo.CreateTable();
+        _l4DestRepo.CreateTable();
     }
 
-    /// <summary>如果没有 Key，注入初始管理员 Key（种子数据）</summary>
-    public void SeedAdminKey(string adminKey)
+    /// <summary>如果没有 Key，注入初始管理员 Key（种子数据）。返回是否实际写入。</summary>
+    public bool SeedAdminKey(string adminKey)
     {
-        if (_keyRepo.Exists()) return;
+        if (_keyRepo.Exists()) return false;
 
         _keyRepo.Insert(new ApiKeyEntity
         {
@@ -57,6 +57,7 @@ public class DbInitService
         });
 
         Console.WriteLine("[DB] Seeded default admin key.");
+        return true;
     }
 
     /// <summary>注入示例路由和集群（仅当 DB 全空时）</summary>

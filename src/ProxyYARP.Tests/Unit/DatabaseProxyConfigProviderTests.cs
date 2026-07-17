@@ -76,7 +76,7 @@ public class DatabaseProxyConfigProviderTests : IDisposable
         config.Clusters[0].Destinations.Should().HaveCount(2);
         config.Clusters[0].Destinations.Should().ContainKey("node-1");
         config.Clusters[0].Destinations.Should().ContainKey("node-2");
-        config.Clusters[0].Destinations["node-1"].Address.Should().Be("http://10.0.0.1:8080");
+        config.Clusters[0].Destinations!["node-1"].Address.Should().Be("http://10.0.0.1:8080");
     }
 
     [Fact]

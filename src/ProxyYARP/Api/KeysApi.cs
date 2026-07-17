@@ -5,7 +5,7 @@ using ProxyYARP.Data.Services;
 
 namespace ProxyYARP.Api;
 
-/// <summary>API Key 管理 �?/api/keys（仅 Admin 可写�?/summary>
+/// <summary>API Key 管理 /api/keys（仅 Admin 可写）</summary>
 public static class KeysApi
 {
     public static void MapKeysApi(this IEndpointRouteBuilder app)
@@ -16,7 +16,7 @@ public static class KeysApi
         group.MapGet("/", (HttpContext ctx, ApiKeyService svc) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
-            var keys = svc.GetAll().Select(MapToDto).ToList();
+            var keys = svc.GetAll().Select(e => MapToDto(e)).ToList();
             return Results.Ok(keys);
         });
 
@@ -37,7 +37,7 @@ public static class KeysApi
                 ? KeyRole.Admin
                 : KeyRole.ReadOnly;
             var entity = svc.Create(req.Name, role);
-            return Results.Created($"/api/keys/{entity.Id}", MapToDto(entity));
+            return Results.Created($"/api/keys/{entity.Id}", MapToDto(entity, revealKey: true));
         });
 
         // PUT /api/keys/{id}
@@ -60,16 +60,20 @@ public static class KeysApi
         });
     }
 
-    private static ApiKeyDto MapToDto(ApiKeyEntity e) => new()
+    private static ApiKeyDto MapToDto(ApiKeyEntity e, bool revealKey = false) => new()
     {
         Id = e.Id,
-        KeyValue = e.KeyValue,
+        // 明文 Key 仅在创建成功时返回一次，列表/详情一律掩码
+        KeyValue = revealKey ? e.KeyValue : MaskKey(e.KeyValue),
         Name = e.Name,
         Role = e.Role,
         IsEnabled = e.IsEnabled == 1,
         CreatedAt = e.CreatedAt,
         LastUsedAt = e.LastUsedAt
     };
+
+    private static string MaskKey(string key)
+        => key.Length <= 8 ? "***" : $"{key[..8]}***";
 }
 
 public sealed class CreateKeyRequest

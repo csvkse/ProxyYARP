@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -47,7 +47,9 @@ partial class Program
         }
 
         // 优先级：命令行参数 > 环境变量 > appsettings.json
-        var env = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
+        var env = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? "Production";
 
         // 环境变量映射（Docker 友好）
         var envMappings = new Dictionary<string, string>
@@ -108,21 +110,9 @@ partial class Program
         // 配置 SQLite 路径
         DbContext.Configure(dbPath);
 
-        // 打印 Banner
+        // 打印 Banner（在种子数据之后，以便正确提示 Key 状态）
         var version = typeof(Program).Assembly.GetName().Version;
         var versionStr = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "unknown";
-        Console.WriteLine("==========================================================");
-        Console.WriteLine($" ProxyYARP - YARP Reverse Proxy Manager {versionStr}");
-        Console.WriteLine("==========================================================");
-        Console.WriteLine($"* Port        : {port}");
-        Console.WriteLine($"* DB Path     : {DbContext.ConnectionString}");
-        var displayKey = isGeneratedKey ? adminKey : $"{adminKey[..Math.Min(4, adminKey.Length)]}***";
-        var keyNotice = isGeneratedKey ? " (首次生成，请保存 Key)" : " (已存在配置)";
-        Console.WriteLine($"* Admin Key   : {displayKey}{keyNotice}");
-        Console.WriteLine($"* Environment : {env}");
-        Console.WriteLine($"* Web UI      : http://localhost:{port}/");
-        Console.WriteLine("==========================================================");
-        Console.WriteLine();
 
         // 构建 WebApplication
         var builder = WebApplication.CreateSlimBuilder(args);
@@ -175,8 +165,29 @@ partial class Program
         // 初始化数据库
         var dbInit = app.Services.GetRequiredService<DbInitService>();
         dbInit.InitTables();
-        dbInit.SeedAdminKey(adminKey);
+        var adminKeySeeded = dbInit.SeedAdminKey(adminKey);
         dbInit.SeedDemoData();
+
+        // 打印 Banner（此时已确定 Key 是否真正入库）
+        Console.WriteLine("==========================================================");
+        Console.WriteLine($" ProxyYARP - YARP Reverse Proxy Manager {versionStr}");
+        Console.WriteLine("==========================================================");
+        Console.WriteLine($"* Port        : {port}");
+        Console.WriteLine($"* DB Path     : {DbContext.ConnectionString}");
+        var displayKey = isGeneratedKey && adminKeySeeded
+            ? adminKey
+            : $"{adminKey[..Math.Min(4, adminKey.Length)]}***";
+        var keyNotice = (isGeneratedKey, adminKeySeeded) switch
+        {
+            (true, true) => " (首次生成，请保存 Key)",
+            (true, false) => " (数据库已存在管理员 Key，本次生成的随机 Key 未生效)",
+            _ => " (已存在配置)"
+        };
+        Console.WriteLine($"* Admin Key   : {displayKey}{keyNotice}");
+        Console.WriteLine($"* Environment : {env}");
+        Console.WriteLine($"* Web UI      : http://localhost:{port}/");
+        Console.WriteLine("==========================================================");
+        Console.WriteLine();
 
         // 注册 YARP config provider（监听 ProxyConfigService 的变更）
         var provider = app.Services.GetRequiredService<DatabaseProxyConfigProvider>();

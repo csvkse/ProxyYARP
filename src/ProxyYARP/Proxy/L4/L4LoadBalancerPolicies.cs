@@ -211,6 +211,6 @@ public static class L4LoadBalancerPolicyFactory
         if (_policies.TryGetValue(name, out var policy))
             return policy;
             
-        return _policies["RoundRobin"]; // 默认回退到轮�
+        return _policies["RoundRobin"]; // 默认回退到轮询
     }
 }
