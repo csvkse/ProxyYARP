@@ -1,4 +1,4 @@
-using Dapper;
+using System.Data;
 using FluentAssertions;
 using ProxyYARP.Tests.TestHelpers;
 
@@ -22,8 +22,14 @@ public class DbInitServiceTests : IDisposable
     {
         // 构造函数已调用 InitTables，验证各表可查询
         using var conn = _db.GetConnection();
-        var tables = conn.Query<string>(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").AsList();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name";
+        using var reader = cmd.ExecuteReader();
+        var tables = new List<string>();
+        while (reader.Read())
+        {
+            tables.Add(reader.GetString(0));
+        }
 
         tables.Should().Contain("ApiKeys");
         tables.Should().Contain("ProxyRoutes");
@@ -45,12 +51,10 @@ public class DbInitServiceTests : IDisposable
     {
         using var conn = _db.GetConnection();
 
-        // 验证 ApiKeys 有正确的列
-        var cols = conn.Query<string>("PRAGMA table_info(ApiKeys)")
-            .AsList(); // 实际会返回多列，用行数验证
-
         // ApiKeys 表应有 7 列
-        var count = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM pragma_table_info('ApiKeys')");
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('ApiKeys')";
+        var count = Convert.ToInt32(cmd.ExecuteScalar());
         count.Should().Be(7, "ApiKeys 表有 Id,KeyValue,Name,Role,IsEnabled,CreatedAt,LastUsedAt 共 7 列");
     }
 

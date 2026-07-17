@@ -4,5 +4,6 @@
     <Assembly Name="SQLitePCLRaw.provider.e_sqlite3" Dynamic="Required All" />
     <Assembly Name="SQLitePCLRaw.core" Dynamic="Required All" />
     <Assembly Name="SQLitePCLRaw.batteries_v2" Dynamic="Required All" />
+    <Assembly Name="ProxyYARP" Dynamic="Required All" />
   </Application>
 </Directives>

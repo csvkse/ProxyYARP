@@ -13,6 +13,8 @@
     <AssemblyName>ProxyYARP</AssemblyName>
     <!-- Dapper.AOT source generator interception -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Dapper.AOT</InterceptorsNamespaces>
+    <!-- 强制要求 Dapper 调用均走 AOT 代码生成，禁止反射回退 -->
+    <DapperAotStrict>true</DapperAotStrict>
     <!-- Suppress trimming warnings from YARP/Dapper that are known-safe -->
     <TrimmerRootDescriptor>rd.xml</TrimmerRootDescriptor>
   </PropertyGroup>

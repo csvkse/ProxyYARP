@@ -15,7 +15,9 @@ public class L4RouteRepository : BaseRepository<L4ProxyRouteEntity>
                 Id TEXT PRIMARY KEY,
                 RouteId TEXT NOT NULL,
                 ListenPort INTEGER NOT NULL UNIQUE,
+                Protocol TEXT NOT NULL DEFAULT 'TCP',
                 LoadBalancingPolicy TEXT NOT NULL DEFAULT 'RoundRobin',
+                IdleTimeoutSeconds INTEGER NOT NULL DEFAULT 60,
                 IsEnabled INTEGER NOT NULL DEFAULT 1,
                 CreatedAt TEXT NOT NULL,
                 UpdatedAt TEXT NOT NULL
@@ -52,20 +54,22 @@ public class L4RouteRepository : BaseRepository<L4ProxyRouteEntity>
     public void Insert(L4ProxyRouteEntity entity)
     {
         WithConnection(c => c.Execute(@"
-            INSERT INTO ProxyL4Routes 
-            (Id, RouteId, ListenPort, LoadBalancingPolicy, IsEnabled, CreatedAt, UpdatedAt)
-            VALUES 
-            (@Id, @RouteId, @ListenPort, @LoadBalancingPolicy, @IsEnabled, @CreatedAt, @UpdatedAt)",
+            INSERT INTO ProxyL4Routes
+            (Id, RouteId, ListenPort, Protocol, LoadBalancingPolicy, IdleTimeoutSeconds, IsEnabled, CreatedAt, UpdatedAt)
+            VALUES
+            (@Id, @RouteId, @ListenPort, @Protocol, @LoadBalancingPolicy, @IdleTimeoutSeconds, @IsEnabled, @CreatedAt, @UpdatedAt)",
             entity));
     }
 
     public void Update(L4ProxyRouteEntity entity)
     {
         WithConnection(c => c.Execute(@"
-            UPDATE ProxyL4Routes SET 
+            UPDATE ProxyL4Routes SET
                 RouteId = @RouteId,
                 ListenPort = @ListenPort,
+                Protocol = @Protocol,
                 LoadBalancingPolicy = @LoadBalancingPolicy,
+                IdleTimeoutSeconds = @IdleTimeoutSeconds,
                 IsEnabled = @IsEnabled,
                 UpdatedAt = @UpdatedAt
             WHERE Id = @Id",
