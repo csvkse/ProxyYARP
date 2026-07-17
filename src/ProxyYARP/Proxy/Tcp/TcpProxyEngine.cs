@@ -141,7 +141,7 @@ public class TcpProxyEngine : BackgroundService
             
             // 获取最新的路由配置
             var route = ctx.Route;
-            var policy = L4LoadBalancerPolicyFactory.GetPolicy(route.LoadBalancingPolicy);
+            var policy = route.Policy ?? L4LoadBalancerPolicyFactory.GetPolicy(route.LoadBalancingPolicy);
             
             // 获取可用的节点列�?(如果做被动健康检查，这里可以过滤掉刚失败的节�
         var availableDests = route.Destinations.ToList();
@@ -217,7 +217,11 @@ public class TcpProxyEngine : BackgroundService
                 int read = await input.ReceiveAsync(buffer, SocketFlags.None, token);
                 if (read == 0) break; // 正常关闭
 
-                await output.SendAsync(buffer.AsMemory(0, read), SocketFlags.None, token);
+                int sent = 0;
+                while (sent < read && !token.IsCancellationRequested)
+                {
+                    sent += await output.SendAsync(buffer.AsMemory(sent, read - sent), SocketFlags.None, token);
+                }
             }
         }
         finally

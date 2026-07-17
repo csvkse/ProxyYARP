@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using ProxyYARP.Data.Models;
 using ProxyYARP.Data.Repositories;
 
@@ -62,9 +63,8 @@ public class ApiKeyService
 
     private static string GenerateKey()
     {
-        // 生成 32 字节随机 Key，Base64Url 编码
-        var bytes = new byte[32];
-        Random.Shared.NextBytes(bytes);
+        // 生成 32 字节密码学安全随机 Key，Base64Url 编码
+        var bytes = RandomNumberGenerator.GetBytes(32);
         return Convert.ToBase64String(bytes)
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }

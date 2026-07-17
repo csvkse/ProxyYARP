@@ -1,5 +1,7 @@
 #pragma warning disable CS8618
 
+using ProxyYARP.Auth;
+
 namespace ProxyYARP.Data.Models;
 
 /// <summary>API Key 数据实体</summary>
@@ -13,5 +15,5 @@ public class ApiKeyEntity
     public string CreatedAt { get; set; }    // ISO 8601
     public string? LastUsedAt { get; set; }
 
-    public bool IsAdmin => Role == "Admin";
+    public bool IsAdmin => KeyRole.Admin.Equals(Role, StringComparison.OrdinalIgnoreCase);
 }

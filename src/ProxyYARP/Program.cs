@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using System.Net;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -26,7 +28,7 @@ partial class Program
     {
         // 帮助信息
         var helpArgs = new[] { "-h", "--h", "-help", "--help", "/?", "/h", "/help" };
-        if (args.Any(a => helpArgs.Contains(a.ToLower())))
+        if (args.Any(a => helpArgs.Contains(a.ToLowerInvariant())))
         {
             PrintHelp();
             return;
@@ -91,10 +93,16 @@ partial class Program
         bool isGeneratedKey = false;
         if (string.IsNullOrWhiteSpace(adminKey))
         {
-            var bytes = new byte[24];
-            Random.Shared.NextBytes(bytes);
+            var bytes = RandomNumberGenerator.GetBytes(32);
             adminKey = Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
             isGeneratedKey = true;
+        }
+
+        // 校验端口（0 表示由 Kestrel 随机分配，测试环境使用）
+        if (port < 0 || port > 65535)
+        {
+            Console.WriteLine($"[ERROR] Invalid port {port}. Port must be between 0 and 65535.");
+            return;
         }
 
         // 配置 SQLite 路径
@@ -157,7 +165,6 @@ partial class Program
             Console.WriteLine($"Registering services for {module.GetType().Name}");
             module.RegisterServices(builder.Services);
         }
-        Console.WriteLine("Is L4ProxyConfigProvider registered? " + builder.Services.Any(s => s.ServiceType.Name == "L4ProxyConfigProvider"));
 
         // 注册 UDP 代理引擎
         builder.Services.AddHostedService<UdpProxyEngine>();
@@ -195,13 +202,16 @@ partial class Program
             }
         });
 
-        // ForwardedHeaders 支持（Nginx/Cloudflare 等反向代理）
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        // ForwardedHeaders 支持（仅信任回环地址，防止客户端伪造）
+        var forwardedHeadersOptions = new ForwardedHeadersOptions
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
             KnownIPNetworks = { },
             KnownProxies = { }
-        });
+        };
+        forwardedHeadersOptions.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.Loopback, 8));
+        forwardedHeadersOptions.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.IPv6Loopback, 128));
+        app.UseForwardedHeaders(forwardedHeadersOptions);
 
         // API Key 鉴权中间件
         app.UseMiddleware<ApiKeyMiddleware>();
@@ -210,7 +220,7 @@ partial class Program
         app.MapGet("/", () => Results.Redirect("/index.html"));
 
         // 版本信息接口
-        app.MapGet("/api/version", () => Results.Ok(new { version = versionStr, name = "ProxyYARP" }));
+        app.MapGet("/api/version", () => Results.Ok(new VersionResponse { Version = versionStr, Name = "ProxyYARP" }));
 
         // 注册 API 路由
         app.MapAuthApi();

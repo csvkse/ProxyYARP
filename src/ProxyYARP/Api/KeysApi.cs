@@ -5,7 +5,7 @@ using ProxyYARP.Data.Services;
 
 namespace ProxyYARP.Api;
 
-/// <summary>API Key 管理 �?/api/keys（仅 Admin 可写�?/summary>
+/// <summary>API Key 管理 �?/api/keys（仅 Admin 可写�?/summary>
 public static class KeysApi
 {
     public static void MapKeysApi(this IEndpointRouteBuilder app)
@@ -33,7 +33,9 @@ public static class KeysApi
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (string.IsNullOrWhiteSpace(req.Name)) return Results.BadRequest(new ErrorResponse { Error = "Name is required" });
-            var role = req.Role == KeyRole.Admin ? KeyRole.Admin : KeyRole.ReadOnly;
+            var role = string.Equals(req.Role, KeyRole.Admin, StringComparison.OrdinalIgnoreCase)
+                ? KeyRole.Admin
+                : KeyRole.ReadOnly;
             var entity = svc.Create(req.Name, role);
             return Results.Created($"/api/keys/{entity.Id}", MapToDto(entity));
         });
@@ -42,7 +44,10 @@ public static class KeysApi
         group.MapPut("/{id}", (string id, HttpContext ctx, UpdateKeyRequest req, ApiKeyService svc) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
-            var ok = svc.Update(id, req.Name ?? "", req.Role ?? KeyRole.ReadOnly, req.IsEnabled);
+            var role = string.Equals(req.Role, KeyRole.Admin, StringComparison.OrdinalIgnoreCase)
+                ? KeyRole.Admin
+                : KeyRole.ReadOnly;
+            var ok = svc.Update(id, req.Name ?? "", role, req.IsEnabled);
             return ok ? Results.Ok(new StatusResponse { Message = "Updated" }) : Results.NotFound();
         });
 

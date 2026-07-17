@@ -118,7 +118,7 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
 
         foreach (var c in entities)
         {
-            var destEntities = _configService.GetDestinationsByCluster(c.ClusterId);
+            var destEntities = _configService.GetEnabledDestinationsByCluster(c.ClusterId);
             var destinations = new Dictionary<string, DestinationConfig>(destEntities.Count);
 
             foreach (var d in destEntities)

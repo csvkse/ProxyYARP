@@ -103,16 +103,46 @@ public class UdpListenerContext : IDisposable
                 var clientEp = result.RemoteEndPoint;
                 if (!_sessions.TryGetValue(clientEp, out var session))
                 {
-                    var policy = L4LoadBalancerPolicyFactory.GetPolicy(_route.LoadBalancingPolicy);
+                    var policy = _route.Policy ?? L4LoadBalancerPolicyFactory.GetPolicy(_route.LoadBalancingPolicy);
                     var dest = policy.PickDestination(_route.Destinations, clientEp);
                     if (dest == null)
                     {
                         _logger.LogWarning("No UDP destinations for port {Port}", _route.ListenPort);
                         continue;
                     }
-                    session = new UdpSession(clientEp, dest, _listenerSocket, _route, _logger);
-                    if (_sessions.TryAdd(clientEp, session)) session.StartBackendReceiveLoop();
+
+                    IPAddress backendAddress;
+                    try
+                    {
+                        var addresses = await Dns.GetHostAddressesAsync(dest.TargetHost, _cts.Token);
+                        if (addresses.Length == 0)
+                        {
+                            _logger.LogWarning("Could not resolve UDP target host {Host} for port {Port}", dest.TargetHost, _route.ListenPort);
+                            continue;
+                        }
+                        backendAddress = addresses[0];
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to resolve UDP target host {Host} for port {Port}", dest.TargetHost, _route.ListenPort);
+                        continue;
+                    }
+
+                    var newSession = new UdpSession(clientEp, backendAddress, dest.TargetPort, _listenerSocket, _route, _logger);
+                    if (_sessions.TryAdd(clientEp, newSession))
+                    {
+                        newSession.StartBackendReceiveLoop();
+                        session = newSession;
+                    }
+                    else
+                    {
+                        newSession.Dispose();
+                        _sessions.TryGetValue(clientEp, out session);
+                    }
                 }
+
+                if (session == null) continue;
+
                 session.LastActiveAt = DateTime.UtcNow;
                 try
                 {
@@ -166,16 +196,16 @@ public class UdpSession : IDisposable
     private readonly ILogger _logger;
     private readonly CancellationTokenSource _cts = new();
 
-    public UdpSession(EndPoint clientEp, L4ProxyDestination destination, Socket frontendSocket, L4ProxyRoute route, ILogger logger)
+    public UdpSession(EndPoint clientEp, IPAddress backendAddress, int backendPort, Socket frontendSocket, L4ProxyRoute route, ILogger logger)
     {
         ClientEndPoint = clientEp;
         _frontendSocket = frontendSocket;
         _logger = logger;
         LastActiveAt = DateTime.UtcNow;
-        BackendSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        BackendSocket.Bind(new IPEndPoint(IPAddress.Any, 0));
-        BackendEndPoint = new IPEndPoint(IPAddress.Parse(destination.TargetHost), destination.TargetPort);
-        L4ConnectionTracker.Increment(destination.TargetHost, destination.TargetPort);
+        BackendSocket = new Socket(backendAddress.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+        BackendSocket.Bind(new IPEndPoint(backendAddress.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any, 0));
+        BackendEndPoint = new IPEndPoint(backendAddress, backendPort);
+        L4ConnectionTracker.Increment(backendAddress.ToString(), backendPort);
     }
 
     public void StartBackendReceiveLoop()

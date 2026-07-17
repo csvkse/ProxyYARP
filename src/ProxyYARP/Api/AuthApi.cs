@@ -26,6 +26,7 @@ public static class AuthApi
             {
                 HttpOnly = true,
                 SameSite = SameSiteMode.Lax,
+                Secure = ctx.Request.IsHttps,
                 Expires = DateTimeOffset.UtcNow.AddDays(7)
             });
 

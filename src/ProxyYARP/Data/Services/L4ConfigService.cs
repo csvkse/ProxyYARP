@@ -103,9 +103,9 @@ public class L4ConfigService
             throw new Exception($"Listen port {listenPort} is already in use by another TCP route.");
 
         var now = DateTime.UtcNow.ToString("o");
-        entity.RouteId = routeId;
-        entity.ListenPort = listenPort;
-        entity.LoadBalancingPolicy = loadBalancingPolicy;
+        entity.RouteId = string.IsNullOrWhiteSpace(routeId) ? entity.RouteId : routeId;
+        entity.ListenPort = listenPort == 0 ? entity.ListenPort : listenPort;
+        entity.LoadBalancingPolicy = string.IsNullOrWhiteSpace(loadBalancingPolicy) ? entity.LoadBalancingPolicy : loadBalancingPolicy;
         entity.IsEnabled = isEnabled ? 1 : 0;
         entity.UpdatedAt = now;
         _routeRepo.Update(entity);

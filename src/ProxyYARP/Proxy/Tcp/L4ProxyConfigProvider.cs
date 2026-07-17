@@ -17,6 +17,7 @@ public class L4ProxyRoute
     public int IdleTimeoutSeconds { get; set; } = 60;
     public string LoadBalancingPolicy { get; set; } = "RoundRobin";
     public IReadOnlyList<L4ProxyDestination> Destinations { get; set; } = Array.Empty<L4ProxyDestination>();
+    public IL4LoadBalancerPolicy? Policy { get; set; }
 }
 
 /// <summary>
@@ -53,7 +54,8 @@ public class L4ProxyConfigProvider
                 TargetHost = dest.TargetHost,
                 TargetPort = dest.TargetPort,
                 Weight = dest.Weight
-            }).ToList()
+            }).ToList(),
+            Policy = L4LoadBalancerPolicyFactory.GetPolicy(d.Route.LoadBalancingPolicy)
         }).ToList();
     }
 }

@@ -57,9 +57,9 @@ public class ProxyConfigService
     {
         var entity = _routeRepo.GetById(id);
         if (entity == null) return false;
-        entity.RouteId = routeId;
-        entity.ClusterId = clusterId;
-        entity.Path = path;
+        entity.RouteId = string.IsNullOrWhiteSpace(routeId) ? entity.RouteId : routeId;
+        entity.ClusterId = string.IsNullOrWhiteSpace(clusterId) ? entity.ClusterId : clusterId;
+        entity.Path = string.IsNullOrWhiteSpace(path) ? entity.Path : path;
         entity.Methods = methods;
         entity.Hosts = hosts;
         entity.Order = order;
@@ -108,8 +108,8 @@ public class ProxyConfigService
     {
         var entity = _clusterRepo.GetById(id);
         if (entity == null) return false;
-        entity.ClusterId = clusterId;
-        entity.LoadBalancing = loadBalancing;
+        entity.ClusterId = string.IsNullOrWhiteSpace(clusterId) ? entity.ClusterId : clusterId;
+        entity.LoadBalancing = string.IsNullOrWhiteSpace(loadBalancing) ? entity.LoadBalancing : loadBalancing;
         entity.HealthCheckEnabled = healthCheckEnabled;
         entity.IsEnabled = isEnabled ? 1 : 0;
         entity.UpdatedAt = DateTime.UtcNow.ToString("o");
@@ -132,6 +132,9 @@ public class ProxyConfigService
 
     public List<ProxyDestinationEntity> GetDestinationsByCluster(string clusterId)
         => _destRepo.GetAllByClusterId(clusterId);
+
+    public List<ProxyDestinationEntity> GetEnabledDestinationsByCluster(string clusterId)
+        => _destRepo.GetByClusterId(clusterId);
 
     public List<ProxyDestinationEntity> GetAllDestinations()
         => _destRepo.GetAll();

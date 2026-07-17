@@ -52,7 +52,7 @@ public class IPHashTcpPolicy : IL4LoadBalancerPolicy
         {
             // Use IP address hash to select destination (ignoring port)
             var hash = ipEndPoint.Address.GetHashCode();
-            var index = Math.Abs(hash) % availableDestinations.Count;
+            var index = (int)((uint)hash % (uint)availableDestinations.Count);
             return availableDestinations[index];
         }
         
@@ -211,6 +211,6 @@ public static class L4LoadBalancerPolicyFactory
         if (_policies.TryGetValue(name, out var policy))
             return policy;
             
-        return _policies["RoundRobin"]; // 默认回退到轮�
+        return _policies["RoundRobin"]; // 默认回退到轮�
     }
 }

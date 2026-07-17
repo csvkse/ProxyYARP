@@ -34,6 +34,7 @@ namespace ProxyYARP.Serialization;
 [JsonSerializable(typeof(TestConnectionRequest))]
 [JsonSerializable(typeof(StatusResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
+[JsonSerializable(typeof(VersionResponse))]
 // 通用响应包装类型
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
@@ -53,4 +54,10 @@ public sealed class StatusResponse
 public sealed class ErrorResponse
 {
     public string Error { get; set; } = "";
+}
+
+public sealed class VersionResponse
+{
+    public string Version { get; set; } = "";
+    public string Name { get; set; } = "";
 }
