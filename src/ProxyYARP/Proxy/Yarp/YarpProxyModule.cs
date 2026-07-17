@@ -13,8 +13,8 @@ public class YarpProxyModule : IProxyModule
     {
         // 注册基于数据库的动态配置提供者
         services.AddSingleton<DatabaseProxyConfigProvider>();
-        
-        // 注册 YARP 并加载配置
+
+        // 注册 YARP 并加载配置（主动健康检查服务由 AddReverseProxy 内部默认注册）
         services.AddReverseProxy()
             .LoadFromCustomConfig(services);
     }
@@ -27,7 +27,7 @@ public class YarpProxyModule : IProxyModule
 
     public void ConfigurePipeline(WebApplication app)
     {
-        // 注册 YARP 代理请求处理管道
-        app.MapReverseProxy();
+        // 注册 YARP 代理请求处理管道（UsePassiveHealthChecks 启用被动健康检查）
+        app.MapReverseProxy(proxy => proxy.UsePassiveHealthChecks());
     }
 }

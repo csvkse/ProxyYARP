@@ -134,12 +134,61 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
             {
                 ClusterId = c.ClusterId,
                 LoadBalancingPolicy = c.LoadBalancing,
-                Destinations = destinations
+                Destinations = destinations,
+                HealthCheck = BuildHealthCheck(c.HealthCheckEnabled, c.ClusterId)
             });
         }
 
         return result;
     }
+
+    /// <summary>解析集群健康检查 JSON（主动 + 被动），解析失败时降级为 null 不阻断配置加载</summary>
+    private HealthCheckConfig? BuildHealthCheck(string? json, string clusterId)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+
+        try
+        {
+            var dto = System.Text.Json.JsonSerializer.Deserialize(
+                json, ProxyYARP.Serialization.AppJsonContext.Default.HealthCheckConfigDto);
+            if (dto == null) return null;
+
+            ActiveHealthCheckConfig? active = null;
+            if (dto.Active is { Enabled: true } a)
+            {
+                active = new ActiveHealthCheckConfig
+                {
+                    Enabled = true,
+                    Interval = ParseTimeSpan(a.Interval),
+                    Timeout = ParseTimeSpan(a.Timeout),
+                    Path = a.Path,
+                    Policy = string.IsNullOrWhiteSpace(a.Policy) ? "ConsecutiveFailures" : a.Policy
+                };
+            }
+
+            PassiveHealthCheckConfig? passive = null;
+            if (dto.Passive is { Enabled: true } p)
+            {
+                passive = new PassiveHealthCheckConfig
+                {
+                    Enabled = true,
+                    Policy = string.IsNullOrWhiteSpace(p.Policy) ? "TransportFailureRate" : p.Policy,
+                    ReactivationPeriod = ParseTimeSpan(p.ReactivationPeriod)
+                };
+            }
+
+            if (active == null && passive == null) return null;
+            return new HealthCheckConfig { Active = active, Passive = passive };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[YARP] Invalid health check JSON for cluster {ClusterId}", clusterId);
+            return null;
+        }
+    }
+
+    private static TimeSpan? ParseTimeSpan(string? value)
+        => TimeSpan.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var ts) ? ts : null;
 }
 
 /// <summary>YARP IProxyConfig 实现：持有当前路由/集群快照和 ChangeToken</summary>

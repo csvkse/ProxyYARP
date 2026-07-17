@@ -189,4 +189,48 @@ public class DatabaseProxyConfigProviderTests : IDisposable
         config.Routes[0].Order.Should().Be(1);
         config.Routes[1].Order.Should().Be(10);
     }
+
+    // ── 健康检查配置 ─────────────────────────────────────────────
+
+    [Fact]
+    public void GetConfig_Cluster_With_HealthCheck_Json_Should_Build_HealthCheckConfig()
+    {
+        var json = """{"active":{"enabled":true,"interval":"00:00:05","timeout":"00:00:02","path":"/health","policy":"ConsecutiveFailures"},"passive":{"enabled":true,"policy":"TransportFailureRate","reactivationPeriod":"00:00:30"}}""";
+        _db.ConfigService.CreateCluster("hc-cluster", "RoundRobin", json);
+
+        var config = _provider.GetConfig();
+
+        var hc = config.Clusters[0].HealthCheck;
+        hc.Should().NotBeNull();
+        hc!.Active.Should().NotBeNull();
+        hc.Active!.Enabled.Should().BeTrue();
+        hc.Active.Interval.Should().Be(TimeSpan.FromSeconds(5));
+        hc.Active.Timeout.Should().Be(TimeSpan.FromSeconds(2));
+        hc.Active.Path.Should().Be("/health");
+        hc.Active.Policy.Should().Be("ConsecutiveFailures");
+        hc.Passive.Should().NotBeNull();
+        hc.Passive!.Enabled.Should().BeTrue();
+        hc.Passive.Policy.Should().Be("TransportFailureRate");
+        hc.Passive.ReactivationPeriod.Should().Be(TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public void GetConfig_Cluster_Without_HealthCheck_Should_Have_Null_HealthCheck()
+    {
+        _db.ConfigService.CreateCluster("plain", "RoundRobin", null);
+
+        var config = _provider.GetConfig();
+
+        config.Clusters[0].HealthCheck.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetConfig_Cluster_With_Invalid_HealthCheck_Json_Should_Fallback_To_Null()
+    {
+        _db.ConfigService.CreateCluster("bad-json", "RoundRobin", "{not valid json");
+
+        var config = _provider.GetConfig();
+
+        config.Clusters[0].HealthCheck.Should().BeNull("非法 JSON 不应阻断配置加载");
+    }
 }

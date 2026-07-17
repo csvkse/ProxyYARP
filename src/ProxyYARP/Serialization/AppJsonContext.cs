@@ -32,6 +32,7 @@ namespace ProxyYARP.Serialization;
 [JsonSerializable(typeof(CreateTcpRouteRequest))]
 [JsonSerializable(typeof(UpdateTcpRouteRequest))]
 [JsonSerializable(typeof(TestConnectionRequest))]
+[JsonSerializable(typeof(ProxyYARP.Proxy.Yarp.HealthCheckConfigDto))]
 [JsonSerializable(typeof(StatusResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
 [JsonSerializable(typeof(VersionResponse))]
