@@ -12,24 +12,26 @@
 
   <ItemGroup>
     <!-- 测试框架 -->
-    <PackageReference Include="Microsoft.NET.Test.Sdk"              Version="17.12.0" />
-    <PackageReference Include="xunit"                               Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio"           Version="2.8.2">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector"                  Version="6.0.4">
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <!-- 断言库 -->
-    <PackageReference Include="FluentAssertions"                    Version="7.2.0" />
+    <PackageReference Include="FluentAssertions" Version="7.2.0" />
     <!-- 集成测试 Host -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"    Version="9.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.7" />
     <!-- SQLite（测试数据库） -->
-    <PackageReference Include="Microsoft.Data.Sqlite"               Version="10.0.10" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <!-- Dapper -->
-    <PackageReference Include="Dapper"                              Version="2.1.79" />
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.61" />
   </ItemGroup>
 
   <ItemGroup>
