@@ -31,6 +31,7 @@
 * **Web 管理界面**：Vue 3 + Tailwind CSS SPA 内嵌于二进制，路由、集群、密钥、TCP 转发可视化管理。
 * **API Key 鉴权**：三种凭证来源（`X-Api-Key` Header / `?key=` Query / `api_key` Cookie），首启自动生成强随机管理员 Key 并掩码显示。
 * **反代适配**：内置 `ForwardedHeaders`（仅信任回环地址），正确解析上游代理后的真实客户端 IP。
+* **开发者文档**：Development 环境自动挂载 Scalar 可视化 API 调试界面（`/scalar/v1`），Production 零暴露。
 * **systemd 一键部署**：`--install` / `--uninstall` 内置服务注册，无需手写 unit 文件。
 
 ---
@@ -234,7 +235,8 @@ volumes:
 | [Dapper.AOT](https://github.com/DapperLib/DapperAOT) | 1.0.52 | 编译期 SQL 代码生成，AOT 零反射（`DapperAotStrict`） |
 | [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | 9.0.7 | SQLite 驱动 |
 | [Microsoft.Extensions.FileProviders.Embedded](https://github.com/dotnet/aspnetcore) | 9.0.7 | wwwroot 静态资源内嵌进单文件 |
-| [Microsoft.AspNetCore.OpenApi](https://github.com/dotnet/aspnetcore) | 9.0.7 | OpenAPI 支持 |
+| [Microsoft.AspNetCore.OpenApi](https://github.com/dotnet/aspnetcore) | 10.0.10 | 内置 OpenAPI 3.1 文档生成（AOT 兼容） |
+| [Scalar.AspNetCore](https://github.com/scalar/scalar) | 2.11.0 | OpenAPI 可视化调试 UI（仅 Development 挂载） |
 
 ### 平台与前端
 
@@ -292,5 +294,28 @@ git tag v1.0.1 && git push origin v1.0.1
 ```
 
 GitHub Actions 自动提取 Tag → `APP_VERSION` build-arg → `dotnet publish -p:Version=` → 推送 `ghcr.io` 镜像标签 `1.0.1` / `1.0` / `latest`。`.csproj` 中的 `<Version>` 仅作本地开发默认值，发版后同步到下一目标版本。
+
+### 开发者文档 (OpenAPI + Scalar)
+
+Development 环境自动挂载可视化 API 文档，**Production 不暴露**：
+
+```bash
+# 本地
+DOTNET_ENVIRONMENT=Development dotnet run
+# 打开 http://localhost:8080/scalar/v1
+
+# Docker
+docker run -d -p 8080:8080 \
+  -e ASPNETCORE_ENVIRONMENT=Development \
+  -e ACCESS_KEY="MySecretKey" \
+  ghcr.io/csvkse/proxyyarp:latest
+```
+
+| 路径 | 说明 |
+|------|------|
+| `/scalar/v1` | Scalar 可视化调试 UI（可填 `X-Api-Key` 直接调试受保护接口） |
+| `/openapi/v1.json` | OpenAPI 3.1 文档源（可导入 Postman / Apifox） |
+
+> ⚠️ Development 模式会将完整 API 结构**无鉴权公开**（接口本身仍需 Key 调用），公网部署请保持默认 Production。
 
 > **注意：AOT 与反射**。AOT 环境不支持运行时反射序列化，新增 DTO 必须在 `Serialization/AppJsonContext.cs` 注册 `[JsonSerializable]`；新增 SQL 查询走 Dapper.AOT 源码生成，禁止反射回退。
