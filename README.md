@@ -1,6 +1,6 @@
 # ProxyYARP
 
-基于 **.NET 10 Native AOT + YARP** 构建的轻量级反向代理管理器。单一可执行文件同时提供 **L7 HTTP 反向代理** 与 **L4 TCP/UDP 端口转发**，配置持久化于 SQLite，内置 Web 管理界面，毫秒级热更新路由，无需重启。
+基于 **.NET 10 Native AOT + YARP** 构建的轻量级反向代理管理器。同时提供 **L7 HTTP 反向代理** 与 **L4 TCP/UDP 端口转发**，配置持久化于 SQLite，内置 Web 管理界面，毫秒级热更新路由，无需重启。
 
 ---
 

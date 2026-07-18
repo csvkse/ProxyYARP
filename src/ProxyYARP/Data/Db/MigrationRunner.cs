@@ -1,9 +1,11 @@
 using Dapper;
+using System.Data;
 
 namespace ProxyYARP.Data.Db;
 
 /// <summary>版本化 schema 迁移执行器（AOT 安全，零第三方依赖，幂等）</summary>
-public static class MigrationRunner
+[DapperAot]
+public partial class MigrationRunner
 {
     public static void Migrate(IDbProvider provider)
     {
@@ -33,11 +35,32 @@ public static class MigrationRunner
             try
             {
                 conn.Execute(migration.Sql, transaction: tx);
-                conn.Execute("""
-                    INSERT INTO "ProxyYARP_SchemaMigrations" ("Version", "Name", "AppliedAt")
-                    VALUES (@Version, @Name, @AppliedAt)
-                    """,
-                    new { migration.Version, migration.Name, AppliedAt = DateTime.UtcNow.ToString("o") }, transaction: tx);
+                
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = """
+                        INSERT INTO "ProxyYARP_SchemaMigrations" ("Version", "Name", "AppliedAt")
+                        VALUES (@Version, @Name, @AppliedAt)
+                        """;
+                    
+                    var pVersion = cmd.CreateParameter();
+                    pVersion.ParameterName = "Version";
+                    pVersion.Value = migration.Version;
+                    cmd.Parameters.Add(pVersion);
+
+                    var pName = cmd.CreateParameter();
+                    pName.ParameterName = "Name";
+                    pName.Value = migration.Name;
+                    cmd.Parameters.Add(pName);
+
+                    var pAppliedAt = cmd.CreateParameter();
+                    pAppliedAt.ParameterName = "AppliedAt";
+                    pAppliedAt.Value = DateTime.UtcNow.ToString("o");
+                    cmd.Parameters.Add(pAppliedAt);
+
+                    cmd.ExecuteNonQuery();
+                }
                 
                 tx.Commit();
                 Console.WriteLine($"[DB] Applied migration {migration.Version}: {migration.Name} ({provider.Name})");
