@@ -43,6 +43,8 @@ namespace ProxyYARP.Serialization;
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(List<Dictionary<string, string>>))]
+[JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(object))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
