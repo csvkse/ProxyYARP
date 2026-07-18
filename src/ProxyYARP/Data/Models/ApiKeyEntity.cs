@@ -12,8 +12,11 @@ public class ApiKeyEntity
     public string Name { get; set; }         // 描述名称
     public string Role { get; set; }         // Admin | ReadOnly
     public bool IsEnabled { get; set; } = true; // true=启用, false=禁用
-    public DateTime CreatedAt { get; set; }
-    public DateTime? LastUsedAt { get; set; }
+    private DateTime _createdAt;
+    public DateTime CreatedAt { get => _createdAt; set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc); }
+
+    private DateTime? _lastUsedAt;
+    public DateTime? LastUsedAt { get => _lastUsedAt; set => _lastUsedAt = value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null; }
 
     public bool IsAdmin => KeyRole.Admin.Equals(Role, StringComparison.OrdinalIgnoreCase);
 }

@@ -1,4 +1,5 @@
-﻿using System.Net;
+using Microsoft.Extensions.Configuration;
+using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
 using ProxyYARP.Data.Db;
 using ProxyYARP.Data.Services;
@@ -18,9 +19,9 @@ public class UdpProxyEngineTests
         var dbPath = Path.Combine(Path.GetTempPath(), $"proxyyarp_udp_{Guid.NewGuid():N}.db");
         var provider = new SqliteDbProvider($"Data Source={dbPath};Cache=Shared;");
         MigrationRunner.Migrate(provider);
-        var configService = new L4ConfigService(new L4RouteRepository(provider), new L4DestinationRepository(provider));
+        var configService = new L4ConfigService(provider, new L4RouteRepository(provider), new L4DestinationRepository(provider));
         var configProviderLogger = new NullLogger<L4ProxyConfigProvider>();
-        var configProvider = new L4ProxyConfigProvider(configService, configProviderLogger);
+        var configProvider = new L4ProxyConfigProvider(configService, new ProxyConfigGroupRepository(provider), new ProxyYARP.Cluster.NodeIdentityManager(new ConfigurationBuilder().Build(), new NullLogger<ProxyYARP.Cluster.NodeIdentityManager>()), configProviderLogger);
 
         var engineLogger = new NullLogger<UdpProxyEngine>();
 

@@ -142,8 +142,15 @@ partial class Program
         // OpenAPI 文档生成（AOT 兼容的内置生成器）
         builder.Services.AddOpenApi();
 
+        // 初始化身份管理器
+        var identityManager = new ProxyYARP.Cluster.NodeIdentityManager(config, LoggerFactory.Create(b => b.AddConsole()).CreateLogger<ProxyYARP.Cluster.NodeIdentityManager>());
+        builder.Services.AddSingleton(identityManager);
+        builder.Services.AddHostedService<ProxyYARP.Cluster.NodeHeartbeatService>();
+
         // 注册 Repository 和 Service
         builder.Services.AddSingleton<IDbProvider>(dbProvider);
+        builder.Services.AddSingleton<ProxyConfigGroupRepository>();
+        builder.Services.AddSingleton<ProxyNodeRepository>();
         builder.Services.AddSingleton<ApiKeyRepository>();
         builder.Services.AddSingleton<RouteRepository>();
         builder.Services.AddSingleton<ClusterRepository>();
@@ -168,9 +175,8 @@ partial class Program
         // 构建应用
         var app = builder.Build();
 
-        // 初始化数据库
+        // 初始化数据库 (主节点模式才可能需要执行高开销的迁移和种子数据)
         var dbInit = app.Services.GetRequiredService<DbInitService>();
-        // 执行 schema 迁移（从 DI 取 Provider，测试环境可替换实现）
         MigrationRunner.Migrate(app.Services.GetRequiredService<IDbProvider>());
         var adminKeySeeded = dbInit.SeedAdminKey(adminKey);
         dbInit.SeedDemoData();
@@ -179,6 +185,8 @@ partial class Program
         Console.WriteLine("==========================================================");
         Console.WriteLine($" ProxyYARP - YARP Reverse Proxy Manager {versionStr}");
         Console.WriteLine("==========================================================");
+        Console.WriteLine($"* Node ID     : {identityManager.NodeId}");
+        Console.WriteLine($"* Group ID    : {identityManager.GroupId}");
         Console.WriteLine($"* Port        : {port}");
         Console.WriteLine($"* Database    : {dbProvider.Name} | {dbProvider.DisplayInfo}");
         var displayKey = isGeneratedKey && adminKeySeeded
@@ -192,33 +200,19 @@ partial class Program
         };
         Console.WriteLine($"* Admin Key   : {displayKey}{keyNotice}");
         Console.WriteLine($"* Environment : {env}");
-        Console.WriteLine($"* Web UI      : http://localhost:{port}/");
+        if (identityManager.IsManagementEnabled)
+        {
+            Console.WriteLine($"* Web UI      : http://localhost:{port}/");
+        }
+        else
+        {
+            Console.WriteLine($"* Web UI      : Disabled (Data Plane Only)");
+        }
         Console.WriteLine("==========================================================");
         Console.WriteLine();
 
         // 注册 YARP config provider（监听 ProxyConfigService 的变更）
         var provider = app.Services.GetRequiredService<DatabaseProxyConfigProvider>();
-
-        // 嵌入式静态文件（wwwroot 内嵌到 DLL）
-        var assembly = typeof(Program).Assembly;
-        var embeddedProvider = new ManifestEmbeddedFileProvider(assembly, "wwwroot");
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = embeddedProvider,
-            RequestPath = "",
-            OnPrepareResponse = ctx =>
-            {
-                // HTML 文件，强制不缓存
-                if (ctx.File.Name.EndsWith(".html"))
-                {
-                    ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store");
-                }
-                else
-                {
-                    ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=3600");
-                }
-            }
-        });
 
         // ForwardedHeaders 支持（仅信任回环地址，防止客户端伪造）
         var forwardedHeadersOptions = new ForwardedHeadersOptions
@@ -231,29 +225,69 @@ partial class Program
         forwardedHeadersOptions.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.IPv6Loopback, 128));
         app.UseForwardedHeaders(forwardedHeadersOptions);
 
-        // API Key 鉴权中间件
-        app.UseMiddleware<ApiKeyMiddleware>();
-
-        // 默认路由 -> 首页
-        app.MapGet("/", () => Results.Redirect("/index.html"));
-
-        // 版本信息接口
-        app.MapGet("/api/version", () => Results.Ok(new VersionResponse { Version = versionStr, Name = "ProxyYARP" }));
-
-        // 开发者文档（仅 Development 暴露，Production 不挂载）
-        if (app.Environment.IsDevelopment())
+        if (identityManager.IsManagementEnabled)
         {
-            app.MapOpenApi(); // /openapi/v1.json
-            app.MapScalarApiReference(); // /scalar/v1
-            Console.WriteLine($"* API Docs    : http://localhost:{port}/scalar/v1");
+            // 嵌入式静态文件（wwwroot 内嵌到 DLL）
+            var assembly = typeof(Program).Assembly;
+            var embeddedProvider = new ManifestEmbeddedFileProvider(assembly, "wwwroot");
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = embeddedProvider,
+                RequestPath = "",
+                OnPrepareResponse = ctx =>
+                {
+                    // HTML 文件，强制不缓存
+                    if (ctx.File.Name.EndsWith(".html"))
+                    {
+                        ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store");
+                    }
+                    else
+                    {
+                        ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=3600");
+                    }
+                }
+            });
+
+            // API Key 鉴权中间件
+            app.UseMiddleware<ApiKeyMiddleware>();
+
+            // 默认路由 -> 首页
+            app.MapGet("/", () => Results.Redirect("/index.html"));
+
+
+            // 版本信息接口
+            app.MapGet("/api/version", () => Results.Ok(new VersionResponse { Version = versionStr, Name = "ProxyYARP" }));
+
+            // 开发者文档（仅 Development 暴露，Production 不挂载）
+            if (app.Environment.IsDevelopment())
+            {
+                app.MapOpenApi(); // /openapi/v1.json
+                app.MapScalarApiReference(); // /scalar/v1
+                Console.WriteLine($"* API Docs    : http://localhost:{port}/scalar/v1");
+            }
+
+            // 注册 API 路由
+            app.MapAuthApi();
+            app.MapKeysApi();
+            app.MapRoutesApi();
+            app.MapClustersApi();
+            app.MapTcpRoutesApi();
+            app.MapNodesApi();
         }
 
-        // 注册 API 路由
-        app.MapAuthApi();
-        app.MapKeysApi();
-        app.MapRoutesApi();
-        app.MapClustersApi();
-        app.MapTcpRoutesApi();
+        // 诊断健康检查端点 (全局暴露，无鉴权，便于负载均衡器与控制台探测)
+        app.MapGet("/api/health", (ProxyYARP.Cluster.NodeIdentityManager ident) => Results.Ok(new 
+        {
+            Status = "OK",
+            NodeId = ident.NodeId,
+            GroupId = ident.GroupId,
+            Name = ident.NodeName,
+            IsManagementEnabled = ident.IsManagementEnabled,
+            ManagementUrl = ident.ManagementUrl,
+            Version = versionStr,
+            Timestamp = DateTime.UtcNow
+        })).AllowAnonymous();
+
 
         // 启动代理管道 (L4/L7)
         foreach (var module in proxyModules)

@@ -9,32 +9,32 @@ public class L4DestinationRepository : BaseRepository<L4ProxyDestinationEntity>
 {
     public L4DestinationRepository(IDbProvider provider) : base(provider) { }
 
-    public List<L4ProxyDestinationEntity> GetByRouteId(string routeId)
+    public List<L4ProxyDestinationEntity> GetByRouteId(string routeId, string groupId)
     {
         return WithConnection(c => c.Query<L4ProxyDestinationEntity>(
-            """SELECT * FROM "ProxyL4Destinations" WHERE "RouteId" = @RouteId AND "IsEnabled" = TRUE""", new { RouteId = routeId })
+            """SELECT * FROM "ProxyYARP_L4Destinations" WHERE "RouteId" = @RouteId AND "GroupId" = @GroupId AND "IsEnabled" = @IsEnabled""", new { RouteId = routeId, GroupId = groupId, IsEnabled = true })
             .AsList());
     }
 
-    public List<L4ProxyDestinationEntity> GetAll()
+    public List<L4ProxyDestinationEntity> GetAll(string groupId)
     {
         return WithConnection(c => c.Query<L4ProxyDestinationEntity>(
-            """SELECT * FROM "ProxyL4Destinations" """).AsList());
+            """SELECT * FROM "ProxyYARP_L4Destinations" WHERE "GroupId" = @GroupId""", new { GroupId = groupId }).AsList());
     }
 
     public void Insert(L4ProxyDestinationEntity entity)
     {
         WithConnection(c => c.Execute("""
-            INSERT INTO "ProxyL4Destinations"
-            ("Id", "RouteId", "TargetHost", "TargetPort", "Weight", "IsEnabled", "CreatedAt", "UpdatedAt")
+            INSERT INTO "ProxyYARP_L4Destinations"
+            ("Id", "RouteId", "GroupId", "TargetHost", "TargetPort", "Weight", "IsEnabled", "CreatedAt", "UpdatedAt")
             VALUES
-            (@Id, @RouteId, @TargetHost, @TargetPort, @Weight, @IsEnabled, @CreatedAt, @UpdatedAt)
+            (@Id, @RouteId, @GroupId, @TargetHost, @TargetPort, @Weight, @IsEnabled, @CreatedAt, @UpdatedAt)
             """,
             entity));
     }
 
-    public void DeleteByRouteId(string routeId)
+    public void DeleteByRouteId(string routeId, string groupId)
     {
-        WithConnection(c => c.Execute("""DELETE FROM "ProxyL4Destinations" WHERE "RouteId" = @RouteId""", new { RouteId = routeId }));
+        WithConnection(c => c.Execute("""DELETE FROM "ProxyYARP_L4Destinations" WHERE "RouteId" = @RouteId AND "GroupId" = @GroupId""", new { RouteId = routeId, GroupId = groupId }));
     }
 }

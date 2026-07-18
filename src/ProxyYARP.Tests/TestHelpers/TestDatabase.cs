@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using ProxyYARP.Data.Db;
 using ProxyYARP.Data.Repositories;
 using ProxyYARP.Data.Services;
@@ -18,6 +19,7 @@ public sealed class TestDatabase : IDisposable
     public RouteRepository       RouteRepo   { get; }
     public ClusterRepository     ClusterRepo { get; }
     public DestinationRepository DestRepo    { get; }
+    public ProxyConfigGroupRepository GroupRepo { get; }
 
     // 服务实例
     public ApiKeyService      KeyService    { get; }
@@ -37,12 +39,13 @@ public sealed class TestDatabase : IDisposable
         RouteRepo   = new RouteRepository(Provider);
         ClusterRepo = new ClusterRepository(Provider);
         DestRepo    = new DestinationRepository(Provider);
+        GroupRepo   = new ProxyConfigGroupRepository(Provider);
         var l4RouteRepo = new L4RouteRepository(Provider);
         var l4DestRepo  = new L4DestinationRepository(Provider);
 
         KeyService    = new ApiKeyService(KeyRepo);
-        ConfigService = new ProxyConfigService(RouteRepo, ClusterRepo, DestRepo);
-        InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, l4RouteRepo, l4DestRepo);
+        ConfigService = new ProxyConfigService(Provider, RouteRepo, ClusterRepo, DestRepo);
+        InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, l4RouteRepo, l4DestRepo, new ProxyYARP.Cluster.NodeIdentityManager(new ConfigurationBuilder().Build(), new Microsoft.Extensions.Logging.Abstractions.NullLogger<ProxyYARP.Cluster.NodeIdentityManager>()));
     }
 
     /// <summary>获取一个新打开的 SQLite 连接（测试用于原生 SQL 验证）</summary>

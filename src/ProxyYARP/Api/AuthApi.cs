@@ -46,7 +46,7 @@ public static class AuthApi
         });
 
         // GET /api/auth/me
-        group.MapGet("/me", (HttpContext ctx) =>
+        group.MapGet("/me", (HttpContext ctx, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             var key = ctx.GetApiKey();
             if (key == null) return Results.Unauthorized();
@@ -54,7 +54,8 @@ public static class AuthApi
             {
                 Token = "***",
                 Role = key.Role,
-                Name = key.Name
+                Name = key.Name,
+                GroupId = ident.GroupId
             });
         });
     }
@@ -70,4 +71,5 @@ public sealed class AuthResponse
     public string Token { get; set; } = "";
     public string Role { get; set; } = "";
     public string Name { get; set; } = "";
+    public string? GroupId { get; set; }
 }

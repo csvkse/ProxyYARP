@@ -12,6 +12,7 @@ public class DbInitService
     private readonly DestinationRepository _destRepo;
     private readonly L4RouteRepository _l4RouteRepo;
     private readonly L4DestinationRepository _l4DestRepo;
+    private readonly ProxyYARP.Cluster.NodeIdentityManager _identityManager;
 
     public DbInitService(
         ApiKeyRepository keyRepo,
@@ -19,7 +20,8 @@ public class DbInitService
         ClusterRepository clusterRepo,
         DestinationRepository destRepo,
         L4RouteRepository l4RouteRepo,
-        L4DestinationRepository l4DestRepo)
+        L4DestinationRepository l4DestRepo,
+        ProxyYARP.Cluster.NodeIdentityManager identityManager)
     {
         _keyRepo = keyRepo;
         _routeRepo = routeRepo;
@@ -27,6 +29,7 @@ public class DbInitService
         _destRepo = destRepo;
         _l4RouteRepo = l4RouteRepo;
         _l4DestRepo = l4DestRepo;
+        _identityManager = identityManager;
     }
 
     /// <summary>如果没有 Key，注入初始管理员 Key（种子数据）。返回是否实际写入。</summary>
@@ -52,17 +55,19 @@ public class DbInitService
     /// <summary>注入示例路由和集群（仅当 DB 全空时）</summary>
     public void SeedDemoData()
     {
-        var routes = _routeRepo.GetAll();
+        var groupId = _identityManager.GroupId;
+        var routes = _routeRepo.GetAll(groupId);
         if (routes.Count > 0) return;
 
         var now = DateTime.UtcNow;
         var clusterId = "demo-cluster";
 
-        if (!_clusterRepo.GetAll().Any(c => c.ClusterId == clusterId))
+        if (!_clusterRepo.GetAll(groupId).Any(c => c.ClusterId == clusterId))
         {
             _clusterRepo.Insert(new ProxyClusterEntity
             {
                 Id = Guid.NewGuid().ToString(),
+                GroupId = groupId,
                 ClusterId = clusterId,
                 LoadBalancing = "RoundRobin",
                 IsEnabled = true,
@@ -71,11 +76,12 @@ public class DbInitService
             });
         }
 
-        if (!_destRepo.GetAll().Any(d => d.ClusterId == clusterId))
+        if (!_destRepo.GetAll(groupId).Any(d => d.ClusterId == clusterId))
         {
             _destRepo.Insert(new ProxyDestinationEntity
             {
                 Id = Guid.NewGuid().ToString(),
+                GroupId = groupId,
                 ClusterId = clusterId,
                 DestId = "dest-1",
                 Address = "https://httpbin.org",
@@ -87,6 +93,7 @@ public class DbInitService
         _routeRepo.Insert(new ProxyRouteEntity
         {
             Id = Guid.NewGuid().ToString(),
+            GroupId = groupId,
             RouteId = "demo-route",
             ClusterId = clusterId,
             Path = "/demo/{**catch-all}",
@@ -97,6 +104,6 @@ public class DbInitService
             UpdatedAt = now
         });
 
-        Console.WriteLine("[DB] Seeded demo route -> cluster -> destination");
+        Console.WriteLine($"[DB] Seeded demo route -> cluster -> destination (Group: {groupId})");
     }
 }

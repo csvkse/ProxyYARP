@@ -32,10 +32,10 @@ public class DbInitServiceTests : IDisposable
             tables.Add(reader.GetString(0));
         }
 
-        tables.Should().Contain("ApiKeys");
-        tables.Should().Contain("ProxyRoutes");
-        tables.Should().Contain("ProxyClusters");
-        tables.Should().Contain("ProxyDestinations");
+        tables.Should().Contain("ProxyYARP_ApiKeys");
+        tables.Should().Contain("ProxyYARP_Routes");
+        tables.Should().Contain("ProxyYARP_Clusters");
+        tables.Should().Contain("ProxyYARP_Destinations");
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class DbInitServiceTests : IDisposable
 
         // ApiKeys 表应有 7 列
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('ApiKeys')";
+        cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('ProxyYARP_ApiKeys')";
         var count = Convert.ToInt32(cmd.ExecuteScalar());
         count.Should().Be(7, "ApiKeys 表有 Id,KeyValue,Name,Role,IsEnabled,CreatedAt,LastUsedAt 共 7 列");
     }
@@ -103,9 +103,9 @@ public class DbInitServiceTests : IDisposable
     {
         _db.InitService.SeedDemoData();
 
-        _db.ClusterRepo.GetAll().Should().HaveCount(1);
-        _db.RouteRepo.GetAll().Should().HaveCount(1);
-        _db.DestRepo.GetAll().Should().HaveCount(1);
+        _db.ClusterRepo.GetAll("default").Should().HaveCount(1);
+        _db.RouteRepo.GetAll("default").Should().HaveCount(1);
+        _db.DestRepo.GetAll("default").Should().HaveCount(1);
     }
 
     [Fact]
@@ -114,14 +114,14 @@ public class DbInitServiceTests : IDisposable
         _db.InitService.SeedDemoData();
         _db.InitService.SeedDemoData(); // 第二次调用
 
-        _db.RouteRepo.GetAll().Should().HaveCount(1); // 仍然只有1条
+        _db.RouteRepo.GetAll("default").Should().HaveCount(1); // 仍然只有1条
     }
 
     [Fact]
     public void SeedDemoData_Route_Should_Be_Enabled()
     {
         _db.InitService.SeedDemoData();
-        var routes = _db.RouteRepo.GetAll();
+        var routes = _db.RouteRepo.GetAll("default");
         routes[0].IsEnabled.Should().BeTrue();
     }
 
@@ -129,8 +129,8 @@ public class DbInitServiceTests : IDisposable
     public void SeedDemoData_Destination_Should_Belong_To_Cluster()
     {
         _db.InitService.SeedDemoData();
-        var cluster = _db.ClusterRepo.GetAll()[0];
-        var dest    = _db.DestRepo.GetAll()[0];
+        var cluster = _db.ClusterRepo.GetAll("default")[0];
+        var dest    = _db.DestRepo.GetAll("default")[0];
         dest.ClusterId.Should().Be(cluster.ClusterId);
     }
 }

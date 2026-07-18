@@ -27,21 +27,23 @@ public static class TcpRoutesApi
         }
 
         // GET /api/tcp-routes
-        group.MapGet("/", (HttpContext ctx, L4ConfigService svc) =>
+        group.MapGet("/", (string? groupId, HttpContext ctx, L4ConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var routes = svc.GetAllRoutesWithDestinations().Select(MapToDto).ToList();
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var routes = svc.GetAllRoutesWithDestinations(targetGroupId).Select(MapToDto).ToList();
             return Results.Ok(routes);
         });
 
         // GET /api/tcp-routes/{id}
-        group.MapGet("/{id}", (string id, HttpContext ctx, L4ConfigService svc) =>
+        group.MapGet("/{id}", (string id, string? groupId, HttpContext ctx, L4ConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var route = svc.GetRouteById(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var route = svc.GetRouteById(id, targetGroupId);
             return route == null ? Results.NotFound() : Results.Ok(MapToDto(route));
         });
 
         // POST /api/tcp-routes
-        group.MapPost("/", (HttpContext ctx, CreateTcpRouteRequest req, L4ConfigService svc) =>
+        group.MapPost("/", (string? groupId, HttpContext ctx, CreateTcpRouteRequest req, L4ConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (string.IsNullOrWhiteSpace(req.RouteId)) return Results.BadRequest(new ErrorResponse { Error = "RouteId is required" });
@@ -53,6 +55,8 @@ public static class TcpRoutesApi
                 return Results.BadRequest(new ErrorResponse { Error = $"本地端口 {req.ListenPort} 已被其他程序占用，请更换端口" });
             }
 
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+
             try
             {
                 var destEntities = req.Destinations.Select(d => new L4ProxyDestinationEntity
@@ -63,10 +67,10 @@ public static class TcpRoutesApi
                     IsEnabled = true
                 }).ToList();
 
-                var entity = svc.CreateRoute(req.RouteId, req.ListenPort, req.LoadBalancingPolicy ?? "RoundRobin", destEntities);
+                var entity = svc.CreateRoute(targetGroupId, req.RouteId, req.ListenPort, "TCP", req.LoadBalancingPolicy ?? "RoundRobin", destEntities);
                 
                 // 返回完整的包含 Destinations 的 dto
-                var createdRouteDto = svc.GetRouteById(entity.Id);
+                var createdRouteDto = svc.GetRouteById(entity.Id, targetGroupId);
                 return Results.Created($"/api/tcp-routes/{entity.Id}", MapToDto(createdRouteDto!));
             }
             catch (Exception ex)
@@ -76,14 +80,16 @@ public static class TcpRoutesApi
         });
 
         // PUT /api/tcp-routes/{id}
-        group.MapPut("/{id}", (string id, HttpContext ctx, UpdateTcpRouteRequest req, L4ConfigService svc) =>
+        group.MapPut("/{id}", (string id, string? groupId, HttpContext ctx, UpdateTcpRouteRequest req, L4ConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (req.Destinations == null || req.Destinations.Count == 0) return Results.BadRequest(new ErrorResponse { Error = "At least one Destination is required" });
 
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+
             try
             {
-                var existingRoute = svc.GetRouteById(id);
+                var existingRoute = svc.GetRouteById(id, targetGroupId);
                 if (existingRoute == null) return Results.NotFound();
 
                 if (req.ListenPort.HasValue && req.ListenPort.Value != existingRoute.Route.ListenPort)
@@ -102,7 +108,7 @@ public static class TcpRoutesApi
                     IsEnabled = true
                 }).ToList();
 
-                var ok = svc.UpdateRoute(id, req.RouteId ?? "", req.ListenPort ?? 0, req.LoadBalancingPolicy ?? "RoundRobin", req.IsEnabled, destEntities);
+                var ok = svc.UpdateRoute(id, targetGroupId, req.RouteId ?? "", req.ListenPort ?? 0, req.LoadBalancingPolicy ?? "RoundRobin", req.IsEnabled, destEntities);
                 return ok ? Results.Ok(new StatusResponse { Message = "Updated" }) : Results.NotFound();
             }
             catch (Exception ex)
@@ -112,10 +118,11 @@ public static class TcpRoutesApi
         });
 
         // DELETE /api/tcp-routes/{id}
-        group.MapDelete("/{id}", (string id, HttpContext ctx, L4ConfigService svc) =>
+        group.MapDelete("/{id}", (string id, string? groupId, HttpContext ctx, L4ConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
-            var ok = svc.DeleteRoute(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var ok = svc.DeleteRoute(id, targetGroupId);
             return ok ? Results.Ok(new StatusResponse { Message = "Deleted" }) : Results.NotFound();
         });
 
@@ -150,6 +157,7 @@ public static class TcpRoutesApi
         Id = d.Route.Id,
         RouteId = d.Route.RouteId,
         ListenPort = d.Route.ListenPort,
+        Protocol = d.Route.Protocol,
         LoadBalancingPolicy = d.Route.LoadBalancingPolicy,
         IsEnabled = d.Route.IsEnabled,
         CreatedAt = d.Route.CreatedAt.ToString("o"),
@@ -192,6 +200,7 @@ public sealed class TcpRouteApiResponseDto
     public string Id { get; set; } = "";
     public string RouteId { get; set; } = "";
     public int ListenPort { get; set; }
+    public string Protocol { get; set; } = "";
     public string LoadBalancingPolicy { get; set; } = "";
     public bool IsEnabled { get; set; }
     public string CreatedAt { get; set; } = "";

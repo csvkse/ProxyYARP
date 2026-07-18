@@ -22,9 +22,9 @@ public class MigrationRunnerTests : IDisposable
         var tables = conn.Query<string>(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").AsList();
         tables.Should().Contain([
-            "ApiKeys", "ProxyRoutes", "ProxyClusters",
-            "ProxyDestinations", "ProxyL4Routes", "ProxyL4Destinations",
-            "__SchemaMigrations"
+            "ProxyYARP_ApiKeys", "ProxyYARP_Routes", "ProxyYARP_Clusters",
+            "ProxyYARP_Destinations", "ProxyYARP_L4Routes", "ProxyYARP_L4Destinations",
+            "ProxyYARP_SchemaMigrations"
         ]);
     }
 
@@ -37,7 +37,7 @@ public class MigrationRunnerTests : IDisposable
         act.Should().NotThrow();
 
         using var conn = provider.CreateConnection();
-        conn.ExecuteScalar<int>("""SELECT COUNT(*) FROM "__SchemaMigrations" """).Should().Be(1);
+        conn.ExecuteScalar<int>("""SELECT COUNT(*) FROM "ProxyYARP_SchemaMigrations" """).Should().Be(1);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class MigrationRunnerTests : IDisposable
         MigrationRunner.Migrate(provider);
 
         using var conn = provider.CreateConnection();
-        conn.QueryFirst<string>("""SELECT "Name" FROM "__SchemaMigrations" WHERE "Version" = 1""")
+        conn.QueryFirst<string>("""SELECT "Name" FROM "ProxyYARP_SchemaMigrations" WHERE "Version" = 1""")
             .Should().Be("InitialSchema");
     }
 

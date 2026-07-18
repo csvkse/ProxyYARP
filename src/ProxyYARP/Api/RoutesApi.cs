@@ -12,30 +12,33 @@ public static class RoutesApi
         var group = app.MapGroup("/api/routes");
 
         // GET /api/routes
-        group.MapGet("/", (HttpContext ctx, ProxyConfigService svc) =>
+        group.MapGet("/", (string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var routes = svc.GetEnabledRoutes().Select(MapToDto).ToList();
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var routes = svc.GetAllRoutes(targetGroupId).Select(MapToDto).ToList();
             return Results.Ok(routes);
         });
 
         // GET /api/routes/{id}
-        group.MapGet("/{id}", (string id, HttpContext ctx, ProxyConfigService svc) =>
+        group.MapGet("/{id}", (string id, string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var route = svc.GetRouteById(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var route = svc.GetRouteById(id, targetGroupId);
             return route == null ? Results.NotFound() : Results.Ok(MapToDto(route));
         });
 
         // POST /api/routes
-        group.MapPost("/", (HttpContext ctx, CreateRouteRequest req, ProxyConfigService svc) =>
+        group.MapPost("/", (string? groupId, HttpContext ctx, CreateRouteRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (string.IsNullOrWhiteSpace(req.RouteId)) return Results.BadRequest(new ErrorResponse { Error = "RouteId is required" });
             if (string.IsNullOrWhiteSpace(req.ClusterId)) return Results.BadRequest(new ErrorResponse { Error = "ClusterId is required" });
             if (string.IsNullOrWhiteSpace(req.Path)) return Results.BadRequest(new ErrorResponse { Error = "Path is required" });
 
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
-                var entity = svc.CreateRoute(req.RouteId, req.ClusterId, req.Path, req.Methods, req.Hosts, req.Order, req.Metadata);
+                var entity = svc.CreateRoute(targetGroupId, req.RouteId, req.ClusterId, req.Path, req.Methods, req.Hosts, req.Order, req.Metadata);
                 return Results.Created($"/api/routes/{entity.Id}", MapToDto(entity));
             }
             catch (Exception ex)
@@ -45,12 +48,13 @@ public static class RoutesApi
         });
 
         // PUT /api/routes/{id}
-        group.MapPut("/{id}", (string id, HttpContext ctx, UpdateRouteRequest req, ProxyConfigService svc) =>
+        group.MapPut("/{id}", (string id, string? groupId, HttpContext ctx, UpdateRouteRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
-                var ok = svc.UpdateRoute(id, req.RouteId ?? "", req.ClusterId ?? "", req.Path ?? "", req.Methods, req.Hosts, req.Order ?? 0, req.IsEnabled, req.Metadata);
+                var ok = svc.UpdateRoute(id, targetGroupId, req.RouteId ?? "", req.ClusterId ?? "", req.Path ?? "", req.Methods, req.Hosts, req.Order ?? 0, req.IsEnabled, req.Metadata);
                 return ok ? Results.Ok(new StatusResponse { Message = "Updated" }) : Results.NotFound();
             }
             catch (Exception ex)
@@ -60,10 +64,11 @@ public static class RoutesApi
         });
 
         // DELETE /api/routes/{id}
-        group.MapDelete("/{id}", (string id, HttpContext ctx, ProxyConfigService svc) =>
+        group.MapDelete("/{id}", (string id, string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
-            var ok = svc.DeleteRoute(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var ok = svc.DeleteRoute(id, targetGroupId);
             return ok ? Results.Ok(new StatusResponse { Message = "Deleted" }) : Results.NotFound();
         });
     }

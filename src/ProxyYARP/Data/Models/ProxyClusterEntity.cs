@@ -6,10 +6,14 @@ namespace ProxyYARP.Data.Models;
 public class ProxyClusterEntity
 {
     public string Id { get; set; }
-    public string ClusterId { get; set; }      // YARP 集群 ID（唯一）
+    public string ClusterId { get; set; }      // YARP 集群 ID（组内唯一）
+    public string GroupId { get; set; }        // 所属配置组 ID
     public string LoadBalancing { get; set; }  // RoundRobin | LeastRequests | Random | FirstAlphabetical | PowerOfTwoChoices
     public string? HealthCheckEnabled { get; set; } // JSON: 健康检查配置（可选）
     public bool IsEnabled { get; set; } = true;
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+    private DateTime _createdAt;
+    public DateTime CreatedAt { get => _createdAt; set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc); }
+
+    private DateTime _updatedAt;
+    public DateTime UpdatedAt { get => _updatedAt; set => _updatedAt = DateTime.SpecifyKind(value, DateTimeKind.Utc); }
 }

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ProxyYARP.Data.Services;
+using ProxyYARP.Data.Repositories;
+using ProxyYARP.Cluster;
 
 namespace ProxyYARP.Proxy.Tcp;
 
@@ -27,22 +29,49 @@ public class L4ProxyRoute
 public class L4ProxyConfigProvider
 {
     private readonly L4ConfigService _configService;
+    private readonly ProxyConfigGroupRepository _groupRepo;
+    private readonly NodeIdentityManager _identityManager;
     private readonly ILogger<L4ProxyConfigProvider> _logger;
+
+    private readonly Timer _timer;
+    private int _lastVersion = -1;
 
     public event Action? OnConfigChanged;
 
-    public L4ProxyConfigProvider(L4ConfigService configService, ILogger<L4ProxyConfigProvider> logger)
+    public L4ProxyConfigProvider(
+        L4ConfigService configService, 
+        ProxyConfigGroupRepository groupRepo,
+        NodeIdentityManager identityManager,
+        ILogger<L4ProxyConfigProvider> logger)
     {
         _configService = configService;
+        _groupRepo = groupRepo;
+        _identityManager = identityManager;
         _logger = logger;
         
-        // 当数据库配置变更时，触发内存更新
-        _configService.OnConfigChanged += () => OnConfigChanged?.Invoke();
+        _timer = new Timer(CheckForUpdates, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private void CheckForUpdates(object? state)
+    {
+        try
+        {
+            var currentVersion = _groupRepo.GetVersion(_identityManager.GroupId);
+            if (currentVersion != _lastVersion)
+            {
+                _lastVersion = currentVersion;
+                OnConfigChanged?.Invoke();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[L4 Proxy] Failed to check for configuration updates.");
+        }
     }
 
     public IReadOnlyList<L4ProxyRoute> GetRoutes()
     {
-        var dtos = _configService.GetEnabledRoutesWithDestinations();
+        var dtos = _configService.GetEnabledRoutesWithDestinations(_identityManager.GroupId);
         return dtos.Select(d => new L4ProxyRoute
         {
             ListenPort = d.Route.ListenPort,

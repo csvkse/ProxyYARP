@@ -12,28 +12,31 @@ public static class ClustersApi
         var group = app.MapGroup("/api/clusters");
 
         // GET /api/clusters
-        group.MapGet("/", (HttpContext ctx, ProxyConfigService svc) =>
+        group.MapGet("/", (string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var clusters = svc.GetEnabledClusters().Select(MapClusterToDto).ToList();
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var clusters = svc.GetAllClusters(targetGroupId).Select(MapClusterToDto).ToList();
             return Results.Ok(clusters);
         });
 
         // GET /api/clusters/{id}
-        group.MapGet("/{id}", (string id, HttpContext ctx, ProxyConfigService svc) =>
+        group.MapGet("/{id}", (string id, string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var cluster = svc.GetClusterById(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var cluster = svc.GetClusterById(id, targetGroupId);
             return cluster == null ? Results.NotFound() : Results.Ok(MapClusterToDto(cluster));
         });
 
         // POST /api/clusters
-        group.MapPost("/", (HttpContext ctx, CreateClusterRequest req, ProxyConfigService svc) =>
+        group.MapPost("/", (string? groupId, HttpContext ctx, CreateClusterRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (string.IsNullOrWhiteSpace(req.ClusterId)) return Results.BadRequest(new ErrorResponse { Error = "ClusterId is required" });
 
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
-                var entity = svc.CreateCluster(req.ClusterId, req.LoadBalancing, req.HealthCheckEnabled);
+                var entity = svc.CreateCluster(targetGroupId, req.ClusterId, req.LoadBalancing, req.HealthCheckEnabled);
                 return Results.Created($"/api/clusters/{entity.Id}", MapClusterToDto(entity));
             }
             catch (Exception ex)
@@ -43,12 +46,13 @@ public static class ClustersApi
         });
 
         // PUT /api/clusters/{id}
-        group.MapPut("/{id}", (string id, HttpContext ctx, UpdateClusterRequest req, ProxyConfigService svc) =>
+        group.MapPut("/{id}", (string id, string? groupId, HttpContext ctx, UpdateClusterRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
-                var ok = svc.UpdateCluster(id, req.ClusterId ?? "", req.LoadBalancing ?? "RoundRobin", req.HealthCheckEnabled, req.IsEnabled);
+                var ok = svc.UpdateCluster(id, targetGroupId, req.ClusterId ?? "", req.LoadBalancing ?? "RoundRobin", req.HealthCheckEnabled, req.IsEnabled);
                 return ok ? Results.Ok(new StatusResponse { Message = "Updated" }) : Results.NotFound();
             }
             catch (Exception ex)
@@ -58,40 +62,44 @@ public static class ClustersApi
         });
 
         // DELETE /api/clusters/{id}
-        group.MapDelete("/{id}", (string id, HttpContext ctx, ProxyConfigService svc) =>
+        group.MapDelete("/{id}", (string id, string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
-            var ok = svc.DeleteCluster(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var ok = svc.DeleteCluster(id, targetGroupId);
             return ok ? Results.Ok(new StatusResponse { Message = "Deleted" }) : Results.NotFound();
         });
 
         // ---------------- Destinations ----------------
 
         // GET /api/clusters/destinations
-        app.MapGet("/api/clusters/destinations", (HttpContext ctx, ProxyConfigService svc) =>
+        app.MapGet("/api/clusters/destinations", (string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var dests = svc.GetAllDestinations().Select(MapDestToDto).ToList();
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var dests = svc.GetAllDestinations(targetGroupId).Select(MapDestToDto).ToList();
             return Results.Ok(dests);
         });
 
         // GET /api/clusters/{clusterId}/destinations
-        group.MapGet("/{clusterId}/destinations", (string clusterId, HttpContext ctx, ProxyConfigService svc) =>
+        group.MapGet("/{clusterId}/destinations", (string clusterId, string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
-            var dests = svc.GetDestinationsByCluster(clusterId).Select(MapDestToDto).ToList();
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var dests = svc.GetDestinationsByCluster(clusterId, targetGroupId).Select(MapDestToDto).ToList();
             return Results.Ok(dests);
         });
 
         // POST /api/clusters/{clusterId}/destinations
-        group.MapPost("/{clusterId}/destinations", (string clusterId, HttpContext ctx, CreateDestinationRequest req, ProxyConfigService svc) =>
+        group.MapPost("/{clusterId}/destinations", (string clusterId, string? groupId, HttpContext ctx, CreateDestinationRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (string.IsNullOrWhiteSpace(req.Address)) return Results.BadRequest(new ErrorResponse { Error = "Address is required" });
 
             var destId = string.IsNullOrWhiteSpace(req.DestId) ? Guid.NewGuid().ToString("N")[..8] : req.DestId;
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
 
             try
             {
-                var entity = svc.CreateDestination(clusterId, destId, req.Address, req.Health, req.Metadata);
+                var entity = svc.CreateDestination(targetGroupId, clusterId, destId, req.Address, req.Health, req.Metadata);
                 return Results.Created($"/api/clusters/{clusterId}/destinations/{entity.Id}", MapDestToDto(entity));
             }
             catch (Exception ex)
@@ -101,13 +109,14 @@ public static class ClustersApi
         });
 
         // PUT /api/clusters/destinations/{id}
-        app.MapPut("/api/clusters/destinations/{id}", (string id, HttpContext ctx, UpdateDestinationRequest req, ProxyConfigService svc) =>
+        app.MapPut("/api/clusters/destinations/{id}", (string id, string? groupId, HttpContext ctx, UpdateDestinationRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
                 var destId = req.DestId ?? "";
-                var ok = svc.UpdateDestination(id, destId, req.Address ?? "", req.Health, req.Metadata, req.IsEnabled);
+                var ok = svc.UpdateDestination(id, targetGroupId, destId, req.Address ?? "", req.Health, req.Metadata, req.IsEnabled);
                 return ok ? Results.Ok(new StatusResponse { Message = "Updated" }) : Results.NotFound();
             }
             catch (Exception ex)
@@ -117,10 +126,11 @@ public static class ClustersApi
         });
 
         // DELETE /api/clusters/destinations/{id}
-        app.MapDelete("/api/clusters/destinations/{id}", (string id, HttpContext ctx, ProxyConfigService svc) =>
+        app.MapDelete("/api/clusters/destinations/{id}", (string id, string? groupId, HttpContext ctx, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
-            var ok = svc.DeleteDestination(id);
+            var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
+            var ok = svc.DeleteDestination(id, targetGroupId);
             return ok ? Results.Ok(new StatusResponse { Message = "Deleted" }) : Results.NotFound();
         });
     }

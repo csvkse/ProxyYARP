@@ -12,27 +12,27 @@ public class ApiKeyRepository : BaseRepository<ApiKeyEntity>
     public ApiKeyEntity? GetByKeyValue(string keyValue)
     {
         return WithConnection(c => c.QueryFirstOrDefault<ApiKeyEntity>(
-            """SELECT * FROM "ApiKeys" WHERE "KeyValue" = @KeyValue AND "IsEnabled" = TRUE""",
-            new { KeyValue = keyValue }));
+            """SELECT * FROM "ProxyYARP_ApiKeys" WHERE "KeyValue" = @KeyValue AND "IsEnabled" = @IsEnabled""",
+            new { KeyValue = keyValue, IsEnabled = true }));
     }
 
     public List<ApiKeyEntity> GetAll()
     {
         return WithConnection(c => c.Query<ApiKeyEntity>(
-            """SELECT * FROM "ApiKeys" ORDER BY "CreatedAt" DESC""")
+            """SELECT * FROM "ProxyYARP_ApiKeys" ORDER BY "CreatedAt" DESC""")
             .AsList());
     }
 
     public ApiKeyEntity? GetById(string id)
     {
         return WithConnection(c => c.QueryFirstOrDefault<ApiKeyEntity>(
-            """SELECT * FROM "ApiKeys" WHERE "Id" = @Id""", new { Id = id }));
+            """SELECT * FROM "ProxyYARP_ApiKeys" WHERE "Id" = @Id""", new { Id = id }));
     }
 
     public void Insert(ApiKeyEntity entity)
     {
         WithConnection(c => c.Execute("""
-            INSERT INTO "ApiKeys" ("Id", "KeyValue", "Name", "Role", "IsEnabled", "CreatedAt")
+            INSERT INTO "ProxyYARP_ApiKeys" ("Id", "KeyValue", "Name", "Role", "IsEnabled", "CreatedAt")
             VALUES (@Id, @KeyValue, @Name, @Role, @IsEnabled, @CreatedAt)
             """,
             entity));
@@ -41,7 +41,7 @@ public class ApiKeyRepository : BaseRepository<ApiKeyEntity>
     public void Update(ApiKeyEntity entity)
     {
         WithConnection(c => c.Execute("""
-            UPDATE "ApiKeys"
+            UPDATE "ProxyYARP_ApiKeys"
             SET "Name" = @Name, "Role" = @Role, "IsEnabled" = @IsEnabled
             WHERE "Id" = @Id
             """,
@@ -51,18 +51,18 @@ public class ApiKeyRepository : BaseRepository<ApiKeyEntity>
     public void UpdateLastUsed(string keyValue)
     {
         WithConnection(c => c.Execute("""
-            UPDATE "ApiKeys" SET "LastUsedAt" = @Now WHERE "KeyValue" = @KeyValue
+            UPDATE "ProxyYARP_ApiKeys" SET "LastUsedAt" = @Now WHERE "KeyValue" = @KeyValue
             """,
             new { Now = DateTime.UtcNow, KeyValue = keyValue }));
     }
 
     public void Delete(string id)
     {
-        WithConnection(c => c.Execute("""DELETE FROM "ApiKeys" WHERE "Id" = @Id""", new { Id = id }));
+        WithConnection(c => c.Execute("""DELETE FROM "ProxyYARP_ApiKeys" WHERE "Id" = @Id""", new { Id = id }));
     }
 
     public bool Exists()
     {
-        return WithConnection(c => c.ExecuteScalar<int>("""SELECT COUNT(*) FROM "ApiKeys" """) > 0);
+        return WithConnection(c => c.ExecuteScalar<int>("""SELECT COUNT(*) FROM "ProxyYARP_ApiKeys" """) > 0);
     }
 }

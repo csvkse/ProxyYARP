@@ -232,11 +232,79 @@
             </aside>
 
             <!-- Main Content -->
-            <main class="flex-1 bg-cyber-bg relative overflow-y-auto z-10 p-6 md:p-8">
+            <main class="flex-1 bg-cyber-bg relative overflow-y-auto z-10 flex flex-col">
+                <!-- Top Nav / Header -->
+                <header class="p-4 border-b border-[#1e1e3a] flex justify-between items-center bg-cyber-surf sticky top-0 z-20">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm font-mono text-cyber-muted uppercase tracking-wider">Node Group:</span>
+                        <div class="relative">
+                            <select v-model="globalGroupId" @change="loadData" 
+                                class="cyber-select rounded px-3 py-1.5 text-sm w-48 lg:w-64 appearance-none cursor-pointer">
+                                <option value="">[ Default Group ]</option>
+                                <option v-for="grp in groupIds" :key="grp" :value="grp">{{ grp }}</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-cyber-muted">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </header>
 
-                <!-- 鐟欏棗娴橀崚鍥ㄥ床 -->
+                <div class="p-6 md:p-8 flex-1">
+                    <!-- 鐟欏棗娴橀崚鍥ㄥ床 -->
                 <div class="max-w-6xl mx-auto h-full">
                     
+                    <!-- Nodes View -->
+                    <div v-if="currentView === 'nodes'" class="animate-fade-in">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('nodes.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('nodes.desc') }}</p>
+                            </div>
+                        </div>
+
+                        <div v-if="nodes.length === 0" class="glass-panel neon-border rounded-lg p-12 text-center text-cyber-muted font-mono">
+                            {{ t('nodes.noConfig') }}
+                        </div>
+
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div v-for="node in nodes" :key="node.id" class="glass-panel p-5 rounded-lg border border-[#1e1e3a] hover:border-cyber-cyan/50 transition-all group">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="w-2 h-2 rounded-full" :class="node.isOnline ? 'bg-cyber-green shadow-neon-green' : 'bg-cyber-red shadow-neon-red'"></span>
+                                            <h3 class="font-display font-bold text-cyber-text text-lg">{{ node.name || node.id }}</h3>
+                                        </div>
+                                        <div class="text-xs font-mono text-cyber-muted mt-1 break-all">ID: {{ node.id }}</div>
+                                        <div class="text-xs font-mono text-cyber-muted mt-1">Group: <span class="text-cyber-cyan">{{ node.groupId }}</span></div>
+                                    </div>
+                                    <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity" v-if="isAdmin">
+                                        <button @click="openNodeModal(node)" class="p-1.5 text-cyber-muted hover:text-cyber-cyan hover:bg-cyber-cyan/10 rounded transition-colors" :title="t('common.edit')">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                        </button>
+                                        <button @click="deleteNode(node.id)" class="p-1.5 text-cyber-muted hover:text-cyber-red hover:bg-cyber-red/10 rounded transition-colors" :title="t('common.del')">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="space-y-3 pt-3 border-t border-[#1e1e3a]">
+                                    <div class="text-sm flex justify-between">
+                                        <span class="text-cyber-muted">{{ t('nodes.management') }}:</span>
+                                        <span class="text-cyber-text" v-if="node.isManagementEnabled">
+                                            <a v-if="node.managementUrl" :href="node.managementUrl" target="_blank" class="text-cyber-cyan hover:underline">{{ node.managementUrl }}</a>
+                                            <span v-else class="text-cyber-green">Enabled</span>
+                                        </span>
+                                        <span class="text-cyber-muted" v-else>Disabled</span>
+                                    </div>
+                                    <div class="text-sm flex justify-between">
+                                        <span class="text-cyber-muted">{{ t('nodes.lastHeartbeat') }}:</span>
+                                        <span class="text-cyber-text font-mono text-xs">{{ node.lastHeartbeat ? new Date(node.lastHeartbeat).toLocaleString() : 'N/A' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Clusters View -->
                     <div v-if="currentView === 'clusters'" class="animate-fade-in">
                         <div class="flex justify-between items-center mb-6">
@@ -521,6 +589,7 @@
                     </div>
 
                 </div>
+                </div>
             </main>
         </div>
 
@@ -533,6 +602,18 @@
                 </div>
                 <div class="p-5 overflow-y-auto space-y-4 flex-1 font-mono text-sm">
                     
+                    <!-- Node Form -->
+                    <template v-if="modal.type === 'node'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('nodes.modalName') }}</label>
+                            <input v-model="form.name" type="text" class="cyber-input w-full rounded px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('nodes.modalUrl') }}</label>
+                            <input v-model="form.managementUrl" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="http://10.0.0.1:8080">
+                        </div>
+                    </template>
+
                     <!-- Cluster Form -->
                     <template v-if="modal.type === 'cluster'">
                         <div>
@@ -740,6 +821,7 @@
                     adminConsole: 'Admin Console',
                     user: 'User',
                     logout: 'Logout',
+                    nodes: 'System Nodes',
                     clusters: 'Clusters & Nodes',
                     routes: 'Proxy Routes',
                     tcp: 'L4 Proxies',
@@ -813,6 +895,20 @@
                     testBtn: 'Test Connection',
                     testing: 'Testing...'
                 },
+                nodes: {
+                    title: 'System Nodes',
+                    desc: 'Manage data plane nodes connected to this cluster.',
+                    id: 'Node ID',
+                    name: 'Name',
+                    group: 'Group ID',
+                    management: 'Management',
+                    status: 'Status',
+                    lastHeartbeat: 'Last Heartbeat',
+                    noConfig: 'No nodes found.',
+                    modalTitle: 'Node',
+                    modalName: 'Node Name *',
+                    modalUrl: 'Management URL'
+                },
                 keys: {
                     title: 'API Keys',
                     desc: 'Manage access tokens for this control plane.',
@@ -861,7 +957,8 @@
                     adminConsole: '管理控制台',
                     user: '用户',
                     logout: '退出登录',
-                    clusters: '集群与节点',
+                    nodes: '系统节点',
+                    clusters: '集群与目标',
                     routes: '代理路由',
                     tcp: '四层代理',
                     keys: '访问密钥',
@@ -933,6 +1030,20 @@
                     addNode: '+ 添加节点',
                     testBtn: '测试连通性',
                     testing: '探测中...'
+                },
+                nodes: {
+                    title: '系统节点',
+                    desc: '管理连接到此集群的底层数据面节点。',
+                    id: '节点 ID',
+                    name: '名称',
+                    group: '集群 ID',
+                    management: '管控API',
+                    status: '状态',
+                    lastHeartbeat: '最后心跳',
+                    noConfig: '暂无节点。',
+                    modalTitle: '节点',
+                    modalName: '节点名称 *',
+                    modalUrl: '管控 URL'
                 },
                 keys: {
                     title: 'API 密钥',
@@ -1008,11 +1119,15 @@
                 const loading = ref(false);
                 const loginKey = ref('');
                 const loginError = ref('');
+                
+                const globalGroupId = ref(''); // Current selected GroupId
+                const groupIds = ref([]); // List of available GroupIds
 
-                const currentView = ref('clusters'); // clusters, routes, keys, help
+                const currentView = ref('nodes'); // nodes, clusters, routes, keys, help
                 const loadingData = ref(false);
 
                 // Data
+                const nodes = ref([]);
                 const clusters = ref([]);
                 const destinations = ref([]);
                 const routes = ref([]);
@@ -1021,11 +1136,12 @@
 
                 // Nav
                 const navItems = [
+                    { id: 'nodes', nameKey: 'nav.nodes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
                     { id: 'clusters', nameKey: 'nav.clusters', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
                     { id: 'routes', nameKey: 'nav.routes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>' },
                     { id: 'tcp', nameKey: 'nav.tcp', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' },
                     { id: 'keys', nameKey: 'nav.keys', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>' },
-                    { id: 'help', nameKey: 'nav.help', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' }
+                    { id: 'help', nameKey: 'nav.help', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' }
                 ];
 
                 const isAdmin = computed(() => currentUser.value?.role === 'Admin');
@@ -1083,6 +1199,18 @@
                         const user = await api.fetch('/api/auth/me');
                         currentUser.value = user;
                         isAuthenticated.value = true;
+                        
+                        try {
+                            const groups = await api.fetch('/api/groups');
+                            if(groups && Array.isArray(groups)) {
+                                groupIds.value = groups.filter(g => g !== 'default');
+                            }
+                        } catch(e) { console.error("Failed to fetch groups", e); }
+                        
+                        if(user && user.groupId && !globalGroupId.value) {
+                            globalGroupId.value = user.groupId === 'default' ? '' : user.groupId;
+                        }
+                        
                         loadData();
                     } catch (e) {
                         isAuthenticated.value = false;
@@ -1109,6 +1237,12 @@
                     isAuthenticated.value = false; currentUser.value = null;
                 };
 
+                const buildUrl = (path) => {
+                    if (!globalGroupId.value) return path;
+                    const sep = path.includes('?') ? '&' : '?';
+                    return `${path}${sep}groupId=${encodeURIComponent(globalGroupId.value)}`;
+                };
+
                 const loadData = async () => {
                     if(!isAuthenticated.value) return;
                     // Don't load if on Help view
@@ -1116,15 +1250,17 @@
 
                     loadingData.value = true;
                     try {
-                        if(currentView.value === 'clusters') {
-                            clusters.value = await api.fetch('/api/clusters');
-                            destinations.value = await api.fetch('/api/clusters/destinations');
+                        if(currentView.value === 'nodes') {
+                            nodes.value = await api.fetch('/api/nodes');
+                        } else if(currentView.value === 'clusters') {
+                            clusters.value = await api.fetch(buildUrl('/api/clusters'));
+                            destinations.value = await api.fetch(buildUrl('/api/clusters/destinations'));
                         } else if(currentView.value === 'routes') {
-                            routes.value = await api.fetch('/api/routes');
+                            routes.value = await api.fetch(buildUrl('/api/routes'));
                         } else if(currentView.value === 'tcp') {
-                            tcpRoutes.value = await api.fetch('/api/tcp-routes');
+                            tcpRoutes.value = await api.fetch(buildUrl('/api/tcp-routes'));
                         } else if(currentView.value === 'keys' && isAdmin.value) {
-                            keys.value = await api.fetch('/api/keys');
+                            keys.value = await api.fetch('/api/keys'); // keys usually don't need group isolation
                         }
                     } catch(e) { handleError(e); }
                     finally { loadingData.value = false; }
@@ -1133,6 +1269,7 @@
                 watch(currentView, loadData);
 
                 // CRUD Modals
+                const openNodeModal = (n) => openModal('node', t('common.edit') + ' ' + t('nodes.modalTitle'), n);
                 const openClusterModal = (c) => openModal('cluster', c ? t('common.edit') + ' ' + t('clusters.modalClusterTitle') : t('clusters.newBtn'), c);
                 const openDestModal = (clusterId, d) => openModal('dest', d ? t('common.edit') + ' ' + t('clusters.modalDestTitle') : t('clusters.addNode'), d, clusterId);
                 const openRouteModal = (r) => openModal('route', r ? t('common.edit') + ' ' + t('routes.modalTitle') : t('routes.newBtn'), r);
@@ -1161,7 +1298,10 @@
                         const isEdit = !!form.id;
                         let url = '', method = isEdit ? 'PUT' : 'POST';
                         
-                        if(modal.type === 'cluster') {
+                        if(modal.type === 'node') {
+                            url = `/api/nodes/${form.id}`;
+                            method = 'PUT';
+                        } else if(modal.type === 'cluster') {
                             url = isEdit ? `/api/clusters/${form.id}` : '/api/clusters';
                         } else if (modal.type === 'dest') {
                             url = isEdit ? `/api/clusters/destinations/${form.id}` : `/api/clusters/${currentParentId}/destinations`;
@@ -1173,7 +1313,8 @@
                             url = isEdit ? `/api/keys/${form.id}` : '/api/keys';
                         }
 
-                        const res = await api.fetch(url, { method, body: form });
+                        const reqUrl = (modal.type === 'key' || modal.type === 'node') ? url : buildUrl(url);
+                        const res = await api.fetch(reqUrl, { method, body: form });
                         showToast(isEdit ? t('common.successUpdate') : t('common.successCreate'));
                         closeModal();
                         
@@ -1187,10 +1328,10 @@
                     }
                 };
 
-                const doDelete = async (url) => {
+                const doDelete = async (url, skipGroup = false) => {
                     if(!confirm(t('common.confirmDelete'))) return;
                     try {
-                        await api.fetch(url, { method: 'DELETE' });
+                        await api.fetch(skipGroup ? url : buildUrl(url), { method: 'DELETE' });
                         showToast(t('common.successDelete'));
                         loadData();
                     } catch(e) { handleError(e); }
@@ -1200,7 +1341,8 @@
                 const deleteDest = (id) => doDelete(`/api/clusters/destinations/${id}`);
                 const deleteRoute = (id) => doDelete(`/api/routes/${id}`);
                 const deleteTcpRoute = (id) => doDelete(`/api/tcp-routes/${id}`);
-                const deleteKey = (id) => doDelete(`/api/keys/${id}`);
+                const deleteKey = (id) => doDelete(`/api/keys/${id}`, true);
+                const deleteNode = (id) => doDelete(`/api/nodes/${id}`, true);
 
                 onMounted(() => {
                     document.title = t('title');
@@ -1211,11 +1353,11 @@
                     locale, toggleLocale, t,
                     isAuthenticated, currentUser, loading, loginKey, loginError, login, logout,
                     currentView, navItems, loadingData, isAdmin,
-                    clusters, destinations, routes, tcpRoutes, keys, clusterDests,
+                    nodes, clusters, destinations, routes, tcpRoutes, keys, clusterDests,
                     toast, modal, form, closeModal, submitModal, newKeyResult,
-                    testingConnection, testTcpConnection,
-                    openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,
-                    deleteCluster, deleteDest, deleteRoute, deleteTcpRoute, deleteKey
+                    testingConnection, testTcpConnection, globalGroupId, loadData,
+                    openNodeModal, openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,
+                    deleteNode, deleteCluster, deleteDest, deleteRoute, deleteTcpRoute, deleteKey
                 };
             }
         }).mount('#app');

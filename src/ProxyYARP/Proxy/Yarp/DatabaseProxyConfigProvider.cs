@@ -2,6 +2,8 @@ using Microsoft.Extensions.Primitives;
 using Yarp.ReverseProxy.Configuration;
 using ProxyYARP.Data.Models;
 using ProxyYARP.Data.Services;
+using ProxyYARP.Data.Repositories;
+using ProxyYARP.Cluster;
 
 namespace ProxyYARP.Proxy.Yarp;
 
@@ -12,22 +14,46 @@ namespace ProxyYARP.Proxy.Yarp;
 public class DatabaseProxyConfigProvider : IProxyConfigProvider
 {
     private readonly ProxyConfigService _configService;
+    private readonly ProxyConfigGroupRepository _groupRepo;
+    private readonly NodeIdentityManager _identityManager;
     private readonly ILogger<DatabaseProxyConfigProvider> _logger;
 
     private volatile DatabaseProxyConfig _currentConfig;
     private volatile CancellationTokenSource _cts;
+    private readonly Timer _timer;
+    private int _lastVersion = -1;
 
     public DatabaseProxyConfigProvider(
         ProxyConfigService configService,
+        ProxyConfigGroupRepository groupRepo,
+        NodeIdentityManager identityManager,
         ILogger<DatabaseProxyConfigProvider> logger)
     {
         _configService = configService;
+        _groupRepo = groupRepo;
+        _identityManager = identityManager;
         _logger = logger;
         _cts = new CancellationTokenSource();
         _currentConfig = BuildConfig();
 
-        // 订阅配置变更事件
-        _configService.OnConfigChanged += Reload;
+        _timer = new Timer(CheckForUpdates, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private void CheckForUpdates(object? state)
+    {
+        try
+        {
+            var currentVersion = _groupRepo.GetVersion(_identityManager.GroupId);
+            if (currentVersion != _lastVersion)
+            {
+                _lastVersion = currentVersion;
+                Reload();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[YARP] Failed to check for configuration updates.");
+        }
     }
 
     public IProxyConfig GetConfig() => _currentConfig;
@@ -37,7 +63,7 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
     {
         try
         {
-            _logger.LogInformation("[YARP] Configuration reload triggered from database");
+            _logger.LogInformation("[YARP] Configuration reload triggered from database (Group: {GroupId})", _identityManager.GroupId);
             // 1. 创建新的 CancellationTokenSource 并替换旧的
             var oldCts = Interlocked.Exchange(ref _cts, new CancellationTokenSource());
             // 2. 使用新 CancellationTokenSource 的 Token 构建新配置
@@ -61,7 +87,7 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
 
     private List<RouteConfig> BuildRoutes()
     {
-        var entities = _configService.GetEnabledRoutes();
+        var entities = _configService.GetEnabledRoutes(_identityManager.GroupId);
         var result = new List<RouteConfig>(entities.Count);
 
         foreach (var e in entities)
@@ -113,12 +139,12 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
 
     private List<ClusterConfig> BuildClusters()
     {
-        var entities = _configService.GetEnabledClusters();
+        var entities = _configService.GetEnabledClusters(_identityManager.GroupId);
         var result = new List<ClusterConfig>(entities.Count);
 
         foreach (var c in entities)
         {
-            var destEntities = _configService.GetEnabledDestinationsByCluster(c.ClusterId);
+            var destEntities = _configService.GetEnabledDestinationsByCluster(c.ClusterId, _identityManager.GroupId);
             var destinations = new Dictionary<string, DestinationConfig>(destEntities.Count);
 
             foreach (var d in destEntities)
