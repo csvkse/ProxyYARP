@@ -6,11 +6,12 @@ RUN apt-get update && apt-get install -y clang zlib1g-dev && rm -rf /var/lib/apt
 
 COPY . .
 WORKDIR /source/src/ProxyYARP
+# 不写死 -r：publish 自动取构建机 RID，arm runner 产出 linux-arm64，x64 runner 产出 linux-x64
 ARG APP_VERSION
 RUN if [ -n "$APP_VERSION" ]; then \
-      dotnet publish -c Release -r linux-x64 -o /app -p:Version=$APP_VERSION; \
+      dotnet publish -c Release -o /app -p:Version=$APP_VERSION; \
     else \
-      dotnet publish -c Release -r linux-x64 -o /app; \
+      dotnet publish -c Release -o /app; \
     fi
 
 # runtime-deps:10.0 与 sdk:10.0 同为 Ubuntu 24.04 (glibc 2.39)，保证 NativeAOT 二进制 glibc 版本匹配

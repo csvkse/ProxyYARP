@@ -1,4 +1,4 @@
-name: Docker Build
+name: Docker Build (Native)
 
 on:
   push:
@@ -7,16 +7,69 @@ on:
   pull_request: # PR 触发仅构建验证，不推送
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      build_all:
+        description: "构建所有平台"
+        required: true
+        default: false
+        type: boolean
+      platform:
+        description: "选择构建平台（当不构建所有平台时生效）"
+        required: true
+        default: "linux/amd64"
+        type: choice
+        options:
+          - linux/amd64
+          - linux/arm64
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  # 准备阶段：根据触发方式动态生成构建矩阵
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 手动触发：根据用户选择决定构建内容
+            if [ "${{ github.event.inputs.build_all }}" = "true" ]; then
+              echo 'matrix={"include":[{"platform":"linux/amd64","os":"ubuntu-latest"},{"platform":"linux/arm64","os":"ubuntu-24.04-arm"}]}' >> $GITHUB_OUTPUT
+              echo "触发模式：手动构建所有平台"
+            else
+              case "${{ github.event.inputs.platform }}" in
+                "linux/amd64")
+                  echo 'matrix={"include":[{"platform":"linux/amd64","os":"ubuntu-latest"}]}' >> $GITHUB_OUTPUT
+                  echo "触发模式：手动构建 linux/amd64"
+                  ;;
+                "linux/arm64")
+                  echo 'matrix={"include":[{"platform":"linux/arm64","os":"ubuntu-24.04-arm"}]}' >> $GITHUB_OUTPUT
+                  echo "触发模式：手动构建 linux/arm64"
+                  ;;
+              esac
+            fi
+          else
+            # Tag 推送 / PR 触发：默认构建所有平台
+            echo 'matrix={"include":[{"platform":"linux/amd64","os":"ubuntu-latest"},{"platform":"linux/arm64","os":"ubuntu-24.04-arm"}]}' >> $GITHUB_OUTPUT
+            echo "触发模式：自动构建所有平台 (Tag/PR)"
+          fi
+
+  # 阶段 1：使用矩阵在各自的原生机器上独立构建（NativeAOT 不支持跨架构，必须原生构建）
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -28,7 +81,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # PR 测试无需登录镜像仓库
+      # PR 测试完全不需要登录镜像仓库
       - name: Log in to the Container registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -47,7 +100,6 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Extract Version
         id: extract_version
@@ -59,17 +111,114 @@ jobs:
             echo "version=" >> $GITHUB_OUTPUT
           fi
 
-      # NativeAOT 仅支持本机构建，Dockerfile 固定 -r linux-x64，故只构建 amd64
-      - name: Build and push
+      # 核心步骤：原生构建，按 digest 推送，manifest 阶段统一打标签
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: src/ProxyYARP/Dockerfile
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha,scope=build-amd64
-          cache-to: type=gha,mode=max,scope=build-amd64
+          cache-from: type=gha,scope=build-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=build-${{ matrix.platform }}
           build-args: |
             APP_VERSION=${{ steps.extract_version.outputs.version }}
-          push: ${{ github.event_name != 'pull_request' }}
+          # PR事件不推送，其他事件推送digest
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+
+      # 导出 digest（仅非 PR 事件）
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}-${{ github.sha }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # 阶段 2：收集产物，合并为多架构 Manifest 并打上最终标签
+  merge:
+    runs-on: ubuntu-latest
+    needs: build
+    # 只在 Tag 推送或手动触发（且推送了镜像）时执行合并
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Set lower case repository name
+        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*-${{ github.sha }}
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          # 检查是否有digest文件
+          if [ -z "$(ls -A .)" ]; then
+            echo "错误：没有找到任何 digest 文件"
+            exit 1
+          fi
+
+          echo "找到以下 digest 文件："
+          ls -la
+
+          # 安全地将每个 digest 文件名与镜像前缀拼接
+          SOURCES=""
+          for f in *; do
+            SOURCES="${SOURCES} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:${f}"
+          done
+
+          echo "准备合并的镜像源: $SOURCES"
+
+          # 创建并推送 manifest
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $SOURCES
+
+          echo "Manifest 创建完成，标签："
+          jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON"
+
+      # 验证推送的 manifest
+      - name: Verify manifest
+        run: |
+          echo "验证多架构 manifest："
+          for tag in $(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON"); do
+            echo "检查 ${tag}"
+            docker buildx imagetools inspect "${tag}"
+          done
