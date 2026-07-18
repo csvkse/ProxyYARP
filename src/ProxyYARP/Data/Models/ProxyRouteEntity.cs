@@ -12,8 +12,8 @@ public class ProxyRouteEntity
     public string? Methods { get; set; }     // 逗号分隔的 HTTP 方法，如 GET,POST（null=全部）
     public string? Hosts { get; set; }       // 逗号分隔的 Host 匹配，如 example.com
     public int Order { get; set; }           // 优先级（越小越高）
-    public int IsEnabled { get; set; }       // 1=启用, 0=禁用
-    public string? Metadata { get; set; }    // JSON: 附加元数据（传递给 YARP transforms）
-    public string CreatedAt { get; set; }
-    public string UpdatedAt { get; set; }
+    public bool IsEnabled { get; set; } = true;  // true=启用, false=禁用
+    public string? Metadata { get; set; }        // JSON: 附加元数据（传递给 YARP transforms）
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }

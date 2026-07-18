@@ -31,7 +31,7 @@ public class ProxyConfigServiceTests : IDisposable
         route.Should().NotBeNull();
         route.Id.Should().NotBeNullOrWhiteSpace();
         route.RouteId.Should().Be("api-route");
-        route.IsEnabled.Should().Be(1);
+        route.IsEnabled.Should().BeTrue();
 
         var all = _db.ConfigService.GetAllRoutes();
         all.Should().HaveCount(1);
@@ -139,7 +139,7 @@ public class ProxyConfigServiceTests : IDisposable
         cluster.Should().NotBeNull();
         cluster.ClusterId.Should().Be("my-cluster");
         cluster.LoadBalancing.Should().Be("RoundRobin");
-        cluster.IsEnabled.Should().Be(1);
+        cluster.IsEnabled.Should().BeTrue();
 
         _db.ConfigService.GetAllClusters().Should().HaveCount(1);
     }
@@ -190,7 +190,7 @@ public class ProxyConfigServiceTests : IDisposable
         dest.ClusterId.Should().Be("cluster-a");
         dest.DestId.Should().Be("node-1");
         dest.Address.Should().Be("http://10.0.0.1:8080");
-        dest.IsEnabled.Should().Be(1);
+        dest.IsEnabled.Should().BeTrue();
 
         _db.ConfigService.GetDestinationsByCluster("cluster-a").Should().HaveCount(1);
     }

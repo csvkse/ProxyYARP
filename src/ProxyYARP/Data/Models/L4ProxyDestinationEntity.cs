@@ -8,7 +8,7 @@ public class L4ProxyDestinationEntity
     public string TargetHost { get; set; }
     public int TargetPort { get; set; }
     public int Weight { get; set; } = 1;
-    public int IsEnabled { get; set; }
-    public string CreatedAt { get; set; }
-    public string UpdatedAt { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }

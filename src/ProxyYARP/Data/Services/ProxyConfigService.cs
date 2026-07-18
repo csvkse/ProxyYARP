@@ -32,7 +32,7 @@ public class ProxyConfigService
     public ProxyRouteEntity CreateRoute(string routeId, string clusterId, string path,
         string? methods, string? hosts, int order, string? metadata)
     {
-        var now = DateTime.UtcNow.ToString("o");
+        var now = DateTime.UtcNow;
         var entity = new ProxyRouteEntity
         {
             Id = Guid.NewGuid().ToString(),
@@ -42,7 +42,7 @@ public class ProxyConfigService
             Methods = methods,
             Hosts = hosts,
             Order = order,
-            IsEnabled = 1,
+            IsEnabled = true,
             Metadata = metadata,
             CreatedAt = now,
             UpdatedAt = now
@@ -63,9 +63,9 @@ public class ProxyConfigService
         entity.Methods = methods;
         entity.Hosts = hosts;
         entity.Order = order;
-        entity.IsEnabled = isEnabled ? 1 : 0;
+        entity.IsEnabled = isEnabled;
         entity.Metadata = metadata;
-        entity.UpdatedAt = DateTime.UtcNow.ToString("o");
+        entity.UpdatedAt = DateTime.UtcNow;
         _routeRepo.Update(entity);
         NotifyChanged();
         return true;
@@ -88,14 +88,14 @@ public class ProxyConfigService
 
     public ProxyClusterEntity CreateCluster(string clusterId, string loadBalancing, string? healthCheckEnabled)
     {
-        var now = DateTime.UtcNow.ToString("o");
+        var now = DateTime.UtcNow;
         var entity = new ProxyClusterEntity
         {
             Id = Guid.NewGuid().ToString(),
             ClusterId = clusterId,
             LoadBalancing = loadBalancing,
             HealthCheckEnabled = healthCheckEnabled,
-            IsEnabled = 1,
+            IsEnabled = true,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -111,8 +111,8 @@ public class ProxyConfigService
         entity.ClusterId = string.IsNullOrWhiteSpace(clusterId) ? entity.ClusterId : clusterId;
         entity.LoadBalancing = string.IsNullOrWhiteSpace(loadBalancing) ? entity.LoadBalancing : loadBalancing;
         entity.HealthCheckEnabled = healthCheckEnabled;
-        entity.IsEnabled = isEnabled ? 1 : 0;
-        entity.UpdatedAt = DateTime.UtcNow.ToString("o");
+        entity.IsEnabled = isEnabled;
+        entity.UpdatedAt = DateTime.UtcNow;
         _clusterRepo.Update(entity);
         NotifyChanged();
         return true;
@@ -152,8 +152,8 @@ public class ProxyConfigService
             Address = address,
             Health = health,
             Metadata = metadata,
-            IsEnabled = 1,
-            CreatedAt = DateTime.UtcNow.ToString("o")
+            IsEnabled = true,
+            CreatedAt = DateTime.UtcNow
         };
         _destRepo.Insert(entity);
         NotifyChanged();
@@ -169,7 +169,7 @@ public class ProxyConfigService
         entity.Address = address;
         entity.Health = health;
         entity.Metadata = metadata;
-        entity.IsEnabled = isEnabled ? 1 : 0;
+        entity.IsEnabled = isEnabled;
         _destRepo.Update(entity);
         NotifyChanged();
         return true;

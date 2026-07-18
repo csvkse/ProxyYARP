@@ -38,7 +38,7 @@ public class L4ConfigService
     public List<L4RouteDto> GetEnabledRoutesWithDestinations()
     {
         var routes = _routeRepo.GetAllEnabled();
-        var allDests = _destRepo.GetAll().Where(d => d.IsEnabled == 1).GroupBy(d => d.RouteId).ToDictionary(g => g.Key, g => g.ToList());
+        var allDests = _destRepo.GetAll().Where(d => d.IsEnabled).GroupBy(d => d.RouteId).ToDictionary(g => g.Key, g => g.ToList());
         
         return routes.Select(r => new L4RouteDto
         {
@@ -65,7 +65,7 @@ public class L4ConfigService
         if (existing != null)
             throw new Exception($"Listen port {listenPort} is already in use by another TCP route.");
 
-        var now = DateTime.UtcNow.ToString("o");
+        var now = DateTime.UtcNow;
         var routeInternalId = Guid.NewGuid().ToString();
         var entity = new L4ProxyRouteEntity
         {
@@ -73,7 +73,7 @@ public class L4ConfigService
             RouteId = routeId,
             ListenPort = listenPort,
             LoadBalancingPolicy = loadBalancingPolicy,
-            IsEnabled = 1,
+            IsEnabled = true,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -102,11 +102,11 @@ public class L4ConfigService
         if (existing != null && existing.Id != id)
             throw new Exception($"Listen port {listenPort} is already in use by another TCP route.");
 
-        var now = DateTime.UtcNow.ToString("o");
+        var now = DateTime.UtcNow;
         entity.RouteId = string.IsNullOrWhiteSpace(routeId) ? entity.RouteId : routeId;
         entity.ListenPort = listenPort == 0 ? entity.ListenPort : listenPort;
         entity.LoadBalancingPolicy = string.IsNullOrWhiteSpace(loadBalancingPolicy) ? entity.LoadBalancingPolicy : loadBalancingPolicy;
-        entity.IsEnabled = isEnabled ? 1 : 0;
+        entity.IsEnabled = isEnabled;
         entity.UpdatedAt = now;
         _routeRepo.Update(entity);
 

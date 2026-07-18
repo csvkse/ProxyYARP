@@ -131,9 +131,9 @@ public static class ClustersApi
         ClusterId = e.ClusterId,
         LoadBalancing = e.LoadBalancing,
         HealthCheckEnabled = e.HealthCheckEnabled,
-        IsEnabled = e.IsEnabled == 1,
-        CreatedAt = e.CreatedAt,
-        UpdatedAt = e.UpdatedAt
+        IsEnabled = e.IsEnabled,
+        CreatedAt = e.CreatedAt.ToString("o"),
+        UpdatedAt = e.UpdatedAt.ToString("o")
     };
 
     private static DestinationDto MapDestToDto(ProxyDestinationEntity e) => new()
@@ -144,8 +144,8 @@ public static class ClustersApi
         Address = e.Address,
         Health = e.Health,
         Metadata = e.Metadata,
-        IsEnabled = e.IsEnabled == 1,
-        CreatedAt = e.CreatedAt
+        IsEnabled = e.IsEnabled,
+        CreatedAt = e.CreatedAt.ToString("o")
     };
 }
 

@@ -27,7 +27,7 @@ public class ApiKeyServiceTests : IDisposable
         entity.KeyValue.Should().NotBeNullOrWhiteSpace();
         entity.Name.Should().Be("Test Key");
         entity.Role.Should().Be("Admin");
-        entity.IsEnabled.Should().Be(1);
+        entity.IsEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class ApiKeyServiceTests : IDisposable
         var updated = _db.KeyService.GetById(created.Id);
         updated!.Name.Should().Be("New Name");
         updated.Role.Should().Be("Admin");
-        updated.IsEnabled.Should().Be(1);
+        updated.IsEnabled.Should().BeTrue();
     }
 
     [Fact]

@@ -35,8 +35,8 @@ public class ApiKeyService
             KeyValue = GenerateKey(),
             Name = name,
             Role = role,
-            IsEnabled = 1,
-            CreatedAt = DateTime.UtcNow.ToString("o")
+            IsEnabled = true,
+            CreatedAt = DateTime.UtcNow
         };
         _repo.Insert(entity);
         return entity;
@@ -48,7 +48,7 @@ public class ApiKeyService
         if (entity == null) return false;
         entity.Name = name;
         entity.Role = role;
-        entity.IsEnabled = isEnabled ? 1 : 0;
+        entity.IsEnabled = isEnabled;
         _repo.Update(entity);
         return true;
     }

@@ -11,6 +11,6 @@ public class ProxyDestinationEntity
     public string Address { get; set; }     // 目标地址 http://backend:8080
     public string? Health { get; set; }     // 健康检查端点（可选）
     public string? Metadata { get; set; }   // JSON 附加元数据
-    public int IsEnabled { get; set; }
-    public string CreatedAt { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
 }

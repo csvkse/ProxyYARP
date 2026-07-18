@@ -69,7 +69,7 @@ public class DbInitServiceTests : IDisposable
         keys.Should().HaveCount(1);
         keys[0].KeyValue.Should().Be("InitialAdminKey");
         keys[0].Role.Should().Be("Admin");
-        keys[0].IsEnabled.Should().Be(1);
+        keys[0].IsEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class DbInitServiceTests : IDisposable
     {
         _db.InitService.SeedDemoData();
         var routes = _db.RouteRepo.GetAll();
-        routes[0].IsEnabled.Should().Be(1);
+        routes[0].IsEnabled.Should().BeTrue();
     }
 
     [Fact]

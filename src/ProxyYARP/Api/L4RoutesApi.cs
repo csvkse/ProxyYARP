@@ -60,7 +60,7 @@ public static class TcpRoutesApi
                     TargetHost = d.TargetHost,
                     TargetPort = d.TargetPort,
                     Weight = d.Weight,
-                    IsEnabled = 1
+                    IsEnabled = true
                 }).ToList();
 
                 var entity = svc.CreateRoute(req.RouteId, req.ListenPort, req.LoadBalancingPolicy ?? "RoundRobin", destEntities);
@@ -99,7 +99,7 @@ public static class TcpRoutesApi
                     TargetHost = d.TargetHost,
                     TargetPort = d.TargetPort,
                     Weight = d.Weight,
-                    IsEnabled = 1
+                    IsEnabled = true
                 }).ToList();
 
                 var ok = svc.UpdateRoute(id, req.RouteId ?? "", req.ListenPort ?? 0, req.LoadBalancingPolicy ?? "RoundRobin", req.IsEnabled, destEntities);
@@ -151,9 +151,9 @@ public static class TcpRoutesApi
         RouteId = d.Route.RouteId,
         ListenPort = d.Route.ListenPort,
         LoadBalancingPolicy = d.Route.LoadBalancingPolicy,
-        IsEnabled = d.Route.IsEnabled == 1,
-        CreatedAt = d.Route.CreatedAt,
-        UpdatedAt = d.Route.UpdatedAt,
+        IsEnabled = d.Route.IsEnabled,
+        CreatedAt = d.Route.CreatedAt.ToString("o"),
+        UpdatedAt = d.Route.UpdatedAt.ToString("o"),
         Destinations = d.Destinations.Select(dest => new TcpDestinationDto
         {
             TargetHost = dest.TargetHost,

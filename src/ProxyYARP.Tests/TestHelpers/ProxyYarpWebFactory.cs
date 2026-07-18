@@ -89,8 +89,8 @@ public class ProxyYarpWebFactory : WebApplicationFactory<Program>, IDisposable
                 KeyValue = ReadOnlyKey,
                 Name = "Test ReadOnly",
                 Role = "ReadOnly",
-                IsEnabled = 1,
-                CreatedAt = DateTime.UtcNow.ToString("o")
+                IsEnabled = true,
+                CreatedAt = DateTime.UtcNow
             });
         }
     }

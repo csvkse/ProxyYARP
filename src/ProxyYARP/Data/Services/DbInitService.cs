@@ -51,8 +51,8 @@ public class DbInitService
             KeyValue = adminKey,
             Name = "Default Admin",
             Role = "Admin",
-            IsEnabled = 1,
-            CreatedAt = DateTime.UtcNow.ToString("o"),
+            IsEnabled = true,
+            CreatedAt = DateTime.UtcNow,
             LastUsedAt = null
         });
 
@@ -66,7 +66,7 @@ public class DbInitService
         var routes = _routeRepo.GetAll();
         if (routes.Count > 0) return;
 
-        var now = DateTime.UtcNow.ToString("o");
+        var now = DateTime.UtcNow;
         var clusterId = "demo-cluster";
 
         if (!_clusterRepo.GetAll().Any(c => c.ClusterId == clusterId))
@@ -76,7 +76,7 @@ public class DbInitService
                 Id = Guid.NewGuid().ToString(),
                 ClusterId = clusterId,
                 LoadBalancing = "RoundRobin",
-                IsEnabled = 1,
+                IsEnabled = true,
                 CreatedAt = now,
                 UpdatedAt = now
             });
@@ -90,7 +90,7 @@ public class DbInitService
                 ClusterId = clusterId,
                 DestId = "dest-1",
                 Address = "https://httpbin.org",
-                IsEnabled = 1,
+                IsEnabled = true,
                 CreatedAt = now
             });
         }
@@ -103,7 +103,7 @@ public class DbInitService
             Path = "/demo/{**catch-all}",
             Methods = null,
             Order = 0,
-            IsEnabled = 1,
+            IsEnabled = true,
             CreatedAt = now,
             UpdatedAt = now
         });

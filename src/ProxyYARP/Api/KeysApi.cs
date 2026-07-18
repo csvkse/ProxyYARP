@@ -67,9 +67,9 @@ public static class KeysApi
         KeyValue = revealKey ? e.KeyValue : MaskKey(e.KeyValue),
         Name = e.Name,
         Role = e.Role,
-        IsEnabled = e.IsEnabled == 1,
-        CreatedAt = e.CreatedAt,
-        LastUsedAt = e.LastUsedAt
+        IsEnabled = e.IsEnabled,
+        CreatedAt = e.CreatedAt.ToString("o"),
+        LastUsedAt = e.LastUsedAt?.ToString("o")
     };
 
     private static string MaskKey(string key)

@@ -9,7 +9,7 @@ public class ProxyClusterEntity
     public string ClusterId { get; set; }      // YARP 集群 ID（唯一）
     public string LoadBalancing { get; set; }  // RoundRobin | LeastRequests | Random | FirstAlphabetical | PowerOfTwoChoices
     public string? HealthCheckEnabled { get; set; } // JSON: 健康检查配置（可选）
-    public int IsEnabled { get; set; }
-    public string CreatedAt { get; set; }
-    public string UpdatedAt { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }

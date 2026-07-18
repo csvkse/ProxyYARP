@@ -42,7 +42,7 @@ public class TcpProxyEngineTests : IClassFixture<ProxyYarpWebFactory>
             "RoundRobin",
             new List<L4ProxyDestinationEntity>
             {
-                new() { TargetHost = "127.0.0.1", TargetPort = echoPort, Weight = 1, IsEnabled = 1 }
+                new() { TargetHost = "127.0.0.1", TargetPort = echoPort, Weight = 1, IsEnabled = true }
             });
 
         try

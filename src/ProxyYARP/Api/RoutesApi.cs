@@ -77,10 +77,10 @@ public static class RoutesApi
         Methods = e.Methods,
         Hosts = e.Hosts,
         Order = e.Order,
-        IsEnabled = e.IsEnabled == 1,
+        IsEnabled = e.IsEnabled,
         Metadata = e.Metadata,
-        CreatedAt = e.CreatedAt,
-        UpdatedAt = e.UpdatedAt
+        CreatedAt = e.CreatedAt.ToString("o"),
+        UpdatedAt = e.UpdatedAt.ToString("o")
     };
 }
 

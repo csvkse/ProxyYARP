@@ -9,7 +9,7 @@ public class L4ProxyRouteEntity
     public string Protocol { get; set; } = "TCP";
     public string LoadBalancingPolicy { get; set; } = "RoundRobin";
     public int IdleTimeoutSeconds { get; set; } = 60;
-    public int IsEnabled { get; set; }
-    public string CreatedAt { get; set; }
-    public string UpdatedAt { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
