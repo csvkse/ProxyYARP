@@ -13,7 +13,8 @@ RUN if [ -n "$APP_VERSION" ]; then \
       dotnet publish -c Release -r linux-x64 -o /app; \
     fi
 
-FROM debian:bookworm-slim
+# runtime-deps:10.0 与 sdk:10.0 同为 Ubuntu 24.04 (glibc 2.39)，保证 NativeAOT 二进制 glibc 版本匹配
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0
 WORKDIR /app
 RUN mkdir -p /app/data
 VOLUME /app/data
