@@ -12,14 +12,16 @@ RUN if [ -n "$APP_VERSION" ]; then \
       dotnet publish -c Release -o /app -p:Version=$APP_VERSION; \
     else \
       dotnet publish -c Release -o /app; \
-    fi
+    fi \
+    && mkdir -p /app/data
 
-# runtime-deps:10.0 与 sdk:10.0 同为 Ubuntu 24.04 (glibc 2.39)，保证 NativeAOT 二进制 glibc 版本匹配
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0
+# chiseled-extra：精简 Ubuntu 24.04（无 apt/shell 冗余，含 busybox/certs/tzdata），glibc 与 sdk:10.0 匹配
+# 注意：chiseled 无 shell，最终阶段不可有 RUN 指令，/app/data 在 build 阶段创建后随 COPY 带入
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-noble-chiseled-extra
 WORKDIR /app
-RUN mkdir -p /app/data
 VOLUME /app/data
 ENV DB_PATH=/app/data/proxy.db
-COPY --from=build /app .
+COPY --from=build --chown=$APP_UID /app .
+USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["./ProxyYARP"]
