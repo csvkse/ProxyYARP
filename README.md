@@ -22,16 +22,18 @@
 
 ## 🌟 核心特性
 
+* **多租户架构隔离 (Multi-Tenant)**：原生支持基于 `GroupId` 的配置隔离，在前端顶部随时切换环境，使单节点控制台即可完美管理多租户的配置树 (Routes / Clusters / TCP)。
+* **分布式物理节点监控 (Node Diagnostics)**：内置心跳汇报机制，并在控制面提供全局节点大盘。智能识别并标红离线节点，实时监控各个数据面的存活状态和外部访问 URL。
+* **数据面/控制面解耦**：工作节点可通过配置关闭管控 API (`Management:Enabled=false`) 仅暴露数据面板与健康检查接口，阻断公网/业务域的安全风险，全面拥抱分布式网关形态。
 * **双层代理**：
   * **L7 (YARP)** — HTTP/HTTPS 反向代理，支持路由匹配、集群负载均衡、目标健康检查。
   * **L4 (TCP/UDP)** — 原生套接字端口转发，支持 TCP 长连接与 UDP 数据报，自带连接测试接口。
 * **原生编译 (Native AOT)**：极低内存占用、毫秒级启动、无 .NET 运行时依赖（主程序 + SQLite 原生库两个文件，同目录部署；Web 静态资源内嵌进主程序）。
 * **配置热更新**：路由/集群/目标全部存于 SQLite，修改后毫秒级推送至 YARP 管道与 L4 引擎，**全程零重启**。
-* **SQLite / PostgreSQL 双支持**：默认嵌入式 SQLite 零配置；可切换至 PostgreSQL（Npgsql 10，Native AOT 兼容，纯托管无原生依赖），通过 `DB_TYPE`+`DB_CONNECTION` 环境变量一键切换，docker-compose 一键起完整栈。
-* **Web 管理界面**：Vue 3 + Tailwind CSS SPA 内嵌于二进制，路由、集群、密钥、TCP 转发可视化管理。
-* **API Key 鉴权**：三种凭证来源（`X-Api-Key` Header / `?key=` Query / `api_key` Cookie），首启自动生成强随机管理员 Key 并掩码显示。
-* **反代适配**：内置 `ForwardedHeaders`（仅信任回环地址），正确解析上游代理后的真实客户端 IP。
-* **开发者文档**：Development 环境自动挂载 Scalar 可视化 API 调试界面（`/scalar/v1`），Production 零暴露。
+* **SQLite / PostgreSQL 双支持**：默认嵌入式 SQLite 零配置；可切换至 PostgreSQL，通过 `DB_TYPE`+`DB_CONNECTION` 环境变量一键切换，docker-compose 一键起完整栈。
+* **Web 管理界面**：Vue 3 + Tailwind CSS SPA 内嵌于二进制，具备路由、集群、密钥、系统物理节点看板等可视化功能。
+* **API Key 鉴权**：三种凭证来源（`X-Api-Key` Header / `?key=` Query / `api_key` Cookie），首启自动生成强随机管理员 Key。
+* **开发者文档**：Development 环境自动挂载 Scalar 可视化 API 调试界面，Production 零暴露。
 * **systemd 一键部署**：`--install` / `--uninstall` 内置服务注册，无需手写 unit 文件。
 
 ---
@@ -101,7 +103,11 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 | `PROXY_PORT` | `ProxyConfig:Port` | 监听端口 | `8080` |
 | `ACCESS_KEY` | `ProxyConfig:AdminKey` | 初始管理员 Key（**仅首启空库时写入**，DB 已有 Key 则忽略） | 自动生成随机 Key |
 | `DB_TYPE` | `Database:Provider` | 数据库 Provider：`sqlite`（默认）/ `pgsql` | `sqlite` |
-| `DB_CONNECTION` | `Database:ConnectionString` | 连接字符串（pgsql 必填，如 `Host=pg;Port=5432;Database=proxyyarp;Username=u;Password=p`；sqlite 留空用 `<程序目录>/proxy.db`） | `""` |
+| `DB_CONNECTION` | `Database:ConnectionString` | 连接字符串（pgsql 必填，如 `Host=pg;Port=5432;...`） | `""` |
+| `NODE_GROUP_ID` | `Management:GroupId` | 该节点归属的租户集群 ID (默认属于 `default` 组) | `default` |
+| `NODE_NAME` | `Management:NodeName` | 物理网关的友好名称 (若空则使用生成的 Guid) | `""` |
+| `MANAGEMENT_ENABLED`| `Management:Enabled` | 是否在该节点开放管控 API 和 Web 管理界面？(设为 `false` 则退化为纯数据面网关) | `true` |
+| `MANAGEMENT_URL` | `Management:Url` | 汇报给中心节点大盘的公网/内网可达管理网址 (用于快速跳转或外网探活) | `""` |
 
 ### 命令行参数
 
@@ -183,19 +189,52 @@ docker compose up -d
 > docker run --rm -v proxyyarp-data:/data --user root alpine chown -R 1654:1654 /data
 > ```
 
-**docker-compose：**
+**docker-compose (结合多租户/控制面与数据面分离)：**
 
 ```yaml
 services:
-  proxyyarp:
+  # 共享数据库层
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: proxyyarp
+      POSTGRES_PASSWORD: proxyyarp
+      POSTGRES_DB: proxyyarp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proxyyarp -d proxyyarp"]
+      interval: 5s
+
+  # 控制面 (管控界面)
+  control-plane:
     image: ghcr.io/csvkse/proxyyarp:latest
     ports: ["8080:8080"]
     environment:
-      ACCESS_KEY: MySecretKey
-    volumes:
-      - proxyyarp-data:/app/data
+      DB_TYPE: pgsql
+      DB_CONNECTION: Host=postgres;Port=5432;Database=proxyyarp;Username=proxyyarp;Password=proxyyarp
+      ACCESS_KEY: "SuperAdminKey123"
+      MANAGEMENT_ENABLED: true
+      NODE_NAME: "Central-Controller"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 数据面网关 1 (租户A)
+  data-plane-a:
+    image: ghcr.io/csvkse/proxyyarp:latest
+    ports: ["8081:8080"]
+    environment:
+      DB_TYPE: pgsql
+      DB_CONNECTION: Host=postgres;Port=5432;Database=proxyyarp;Username=proxyyarp;Password=proxyyarp
+      MANAGEMENT_ENABLED: false  # 纯网关，不暴露管控台
+      NODE_GROUP_ID: "Tenant-A"
+      NODE_NAME: "Gateway-A-Worker1"
+    depends_on:
+      - control-plane
+
 volumes:
-  proxyyarp-data:
+  pgdata:
 ```
 
 ---
@@ -231,14 +270,14 @@ volumes:
                  │           ProxyYARP            │
                  │  ┌──────────────────────────┐  │
    浏览器管理 ──▶ │  │ Minimal API + Web UI      │  │
-   (X-Api-Key)   │  │ (内嵌 wwwroot, AOT JSON)  │  │
+   (X-Api-Key)   │  │ (支持 GroupId 租户切换)    │  │
                  │  └───────────┬──────────────┘  │
                  │              ▼ Dapper.AOT      │
                  │  ┌──────────────────────────┐  │
-                 │  │ SQLite (routes/clusters/  │  │
-                 │  │  destinations/keys/l4)    │  │
+                 │  │ Shared Postgres/SQLite   │  │
+                 │  │ (中心化配置、节点心跳表)    │  │
                  │  └───────────┬──────────────┘  │
-                 │   变更通知    │                  │
+                 │   变更通知    │  (心跳探活)      │
                  │  ┌───────────┴──────────────┐  │
    HTTP 流量 ──▶ │  │ YARP 管道 (L7)            │  │
                  │  │ DatabaseProxyConfigProvider│  │
@@ -249,11 +288,10 @@ volumes:
                  └────────────────────────────────┘
 ```
 
-**数据流**：
-1. 管理员通过 Web UI / API 修改路由、集群或 L4 转发，写入 SQLite。
-2. `ProxyConfigService` / `L4ConfigService` 触发变更通知。
-3. `DatabaseProxyConfigProvider` 毫秒级向 YARP 推送新配置快照；TCP/UDP 引擎同步重建监听。
-4. 流量按最新配置转发，**进程无需重启**。
+**数据流与节点分离**：
+1. **控制面隔离**：配置项按 `GroupId` (组 ID) 在数据库底层彻底隔离，不同的业务网关互不干扰。
+2. **零停机分发**：管理员通过 Web UI / API 修改路由、集群或 L4 转发，写入数据库。`ProxyConfigService` 触发变更通知，毫秒级向各工作节点的 YARP 推送新配置快照，**全程无需重启进程**。
+3. **数据面守护**：工作节点仅配置数据库连接串和属于自己的 `NODE_GROUP_ID`。配置 `MANAGEMENT_ENABLED=false` 即可关闭 Web 端点，成为完全封闭的高并发纯代理机器。工作节点每 10 秒向中心库写入自己的心跳状态（在线/离线），供管控端监控。
 
 ---
 
