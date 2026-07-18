@@ -29,17 +29,6 @@ public class DbInitService
         _l4DestRepo = l4DestRepo;
     }
 
-    /// <summary>初始化所有表结构</summary>
-    public void InitTables()
-    {
-        _keyRepo.CreateTable();
-        _routeRepo.CreateTable();
-        _clusterRepo.CreateTable();
-        _destRepo.CreateTable();
-        _l4RouteRepo.CreateTable();
-        _l4DestRepo.CreateTable();
-    }
-
     /// <summary>如果没有 Key，注入初始管理员 Key（种子数据）。返回是否实际写入。</summary>
     public bool SeedAdminKey(string adminKey)
     {

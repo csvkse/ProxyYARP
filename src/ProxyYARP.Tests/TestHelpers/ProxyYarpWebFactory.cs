@@ -33,8 +33,10 @@ public class ProxyYarpWebFactory : WebApplicationFactory<Program>, IDisposable
 
         builder.ConfigureServices(services =>
         {
-            // 用测试 DB 路径覆盖静态 DbContext 配置
-            DbContext.Configure(_dbPath);
+            // 用测试专用 SQLite 替换默认 IDbProvider
+            services.RemoveAll<IDbProvider>();
+            services.AddSingleton<IDbProvider>(
+                new SqliteDbProvider($"Data Source={_dbPath};Cache=Shared;"));
 
             // 移除 UDP 代理引擎（测试环境不需要 UDP 转发）
             var udpServices = services
@@ -51,7 +53,6 @@ public class ProxyYarpWebFactory : WebApplicationFactory<Program>, IDisposable
         // 通过环境变量注入配置（比 IConfiguration 注入更早生效）
         builder.UseSetting("ProxyConfig:AdminKey", AdminKey);
         builder.UseSetting("ProxyConfig:Port", "0"); // 随机端口
-        builder.UseSetting("ProxyConfig:DbPath", _dbPath);
     }
 
     /// <summary>获取预配置了 AdminKey 的 HttpClient</summary>

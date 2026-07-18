@@ -3,39 +3,22 @@ using ProxyYARP.Data.Db;
 
 namespace ProxyYARP.Data.Repositories;
 
-/// <summary>Repository 基类，提供统一的数据库连接获取</summary>
-public class BaseRepository<T> where T : class, new()
+/// <summary>Repository 基类，通过 IDbProvider 获取数据库连接</summary>
+public abstract class BaseRepository<T> where T : class, new()
 {
-    private readonly IDbConnection? _explicitConnection;
+    private readonly IDbProvider _provider;
 
-    public BaseRepository(IDbConnection? connection = null)
-    {
-        _explicitConnection = connection;
-    }
+    protected BaseRepository(IDbProvider provider) => _provider = provider;
 
     protected void WithConnection(Action<IDbConnection> action)
     {
-        if (_explicitConnection != null)
-        {
-            action(_explicitConnection);
-        }
-        else
-        {
-            using var conn = DbContext.GetConnection();
-            action(conn);
-        }
+        using var conn = _provider.CreateConnection();
+        action(conn);
     }
 
     protected TResult WithConnection<TResult>(Func<IDbConnection, TResult> action)
     {
-        if (_explicitConnection != null)
-        {
-            return action(_explicitConnection);
-        }
-        else
-        {
-            using var conn = DbContext.GetConnection();
-            return action(conn);
-        }
+        using var conn = _provider.CreateConnection();
+        return action(conn);
     }
 }

@@ -57,7 +57,6 @@ partial class Program
         {
             { "PROXY_PORT",    "ProxyConfig:Port" },
             { "ACCESS_KEY",    "ProxyConfig:AdminKey" },
-            { "DB_PATH",       "ProxyConfig:DbPath" },
             { "DB_TYPE",       "Database:Provider" },
             { "DB_CONNECTION", "Database:ConnectionString" }
         };
@@ -76,8 +75,6 @@ partial class Program
             { "--Port",    "ProxyConfig:Port" },
             { "-k",        "ProxyConfig:AdminKey" },
             { "--Key",     "ProxyConfig:AdminKey" },
-            { "-db",       "ProxyConfig:DbPath" },
-            { "--Db",      "ProxyConfig:DbPath" },
             { "--db-type", "Database:Provider" },
             { "--db-conn", "Database:ConnectionString" }
         };
@@ -93,7 +90,6 @@ partial class Program
 
         // 读取关键配置
         var port = config.GetValue<int>("ProxyConfig:Port", 8080);
-        var dbPath = config["ProxyConfig:DbPath"] ?? "";
         var adminKey = config["ProxyConfig:AdminKey"] ?? "";
 
         // 若未提供 Key，自动生成随机 Key
@@ -111,9 +107,6 @@ partial class Program
             Console.WriteLine($"[ERROR] Invalid port {port}. Port must be between 0 and 65535.");
             return;
         }
-
-        // 配置 SQLite 路径
-        DbContext.Configure(dbPath);
 
         // 数据库 Provider（sqlite 默认；pgsql 用 --db-type pgsql --db-conn "Host=..."）
         var dbProvider = DatabaseProviderFactory.Create(
@@ -177,7 +170,8 @@ partial class Program
 
         // 初始化数据库
         var dbInit = app.Services.GetRequiredService<DbInitService>();
-        dbInit.InitTables();
+        // 执行 schema 迁移（从 DI 取 Provider，测试环境可替换实现）
+        MigrationRunner.Migrate(app.Services.GetRequiredService<IDbProvider>());
         var adminKeySeeded = dbInit.SeedAdminKey(adminKey);
         dbInit.SeedDemoData();
 
@@ -186,7 +180,7 @@ partial class Program
         Console.WriteLine($" ProxyYARP - YARP Reverse Proxy Manager {versionStr}");
         Console.WriteLine("==========================================================");
         Console.WriteLine($"* Port        : {port}");
-        Console.WriteLine($"* DB Path     : {DbContext.ConnectionString}");
+        Console.WriteLine($"* Database    : {dbProvider.Name} | {dbProvider.DisplayInfo}");
         var displayKey = isGeneratedKey && adminKeySeeded
             ? adminKey
             : $"{adminKey[..Math.Min(4, adminKey.Length)]}***";
@@ -278,7 +272,8 @@ partial class Program
         Console.WriteLine("Options:");
         Console.WriteLine("  -p, --Port <port>       Listening port. Default: 8080");
         Console.WriteLine("  -k, --Key <key>         Initial admin API key (auto-generated if empty)");
-        Console.WriteLine("  -db, --Db <path>        SQLite database file path. Default: ./proxy.db");
+        Console.WriteLine("  --db-type <type>        Database provider: sqlite (default) | pgsql");
+        Console.WriteLine("  --db-conn <connstr>     Database connection string");
         Console.WriteLine();
         Console.WriteLine("Service Management (Linux only):");
         Console.WriteLine("  --install               Register as systemd service");
@@ -287,12 +282,14 @@ partial class Program
         Console.WriteLine("Environment Variables:");
         Console.WriteLine("  PROXY_PORT              Listening port");
         Console.WriteLine("  ACCESS_KEY              Initial admin API key");
-        Console.WriteLine("  DB_PATH                 SQLite database path");
+        Console.WriteLine("  DB_TYPE                 Database provider: sqlite (default) | pgsql");
+        Console.WriteLine("  DB_CONNECTION           Database connection string");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  ./ProxyYARP -p 8080 -k MyAdminKey");
         Console.WriteLine("  ./ProxyYARP -p 8080 -k MyAdminKey --install");
         Console.WriteLine("  PROXY_PORT=8080 ACCESS_KEY=secret ./ProxyYARP");
+        Console.WriteLine("  DB_TYPE=pgsql DB_CONNECTION=\"Host=pg;Database=proxy;Username=u;Password=p\" ./ProxyYARP");
     }
 }
 

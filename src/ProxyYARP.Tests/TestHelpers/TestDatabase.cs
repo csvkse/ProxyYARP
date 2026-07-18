@@ -1,4 +1,4 @@
-﻿using ProxyYARP.Data.Db;
+using ProxyYARP.Data.Db;
 using ProxyYARP.Data.Repositories;
 using ProxyYARP.Data.Services;
 
@@ -6,11 +6,12 @@ namespace ProxyYARP.Tests.TestHelpers;
 
 /// <summary>
 /// 为每个测试提供独立的临时 SQLite 数据库（测试结束后自动清理）
-/// BaseRepository 通过 DbContext.Configure 的全局静态连接字符串创建连接
+/// Repository 通过注入的 SqliteDbProvider 创建连接
 /// </summary>
 public sealed class TestDatabase : IDisposable
 {
     public string DbPath { get; }
+    public SqliteDbProvider Provider { get; }
 
     // 仓储实例
     public ApiKeyRepository      KeyRepo     { get; }
@@ -27,25 +28,21 @@ public sealed class TestDatabase : IDisposable
     {
         // 每个测试使用独立的临时文件
         DbPath = Path.Combine(Path.GetTempPath(), $"proxyyarp_test_{Guid.NewGuid():N}.db");
+        Provider = new SqliteDbProvider($"Data Source={DbPath};Cache=Shared;");
 
-        // 显式创建独立的 SQLite 连接，确保单元测试之间的完全隔离，不受静态 DbContext 影响
-        var connectionString = $"Data Source={DbPath};";
-        var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+        // 执行迁移建表
+        MigrationRunner.Migrate(Provider);
 
-        // 初始化仓储实例时，注入独立连接
-        KeyRepo     = new ApiKeyRepository(connection);
-        RouteRepo   = new RouteRepository(connection);
-        ClusterRepo = new ClusterRepository(connection);
-        DestRepo    = new DestinationRepository(connection);
-        var l4RouteRepo = new L4RouteRepository(connection);
-        var l4DestRepo  = new L4DestinationRepository(connection);
+        KeyRepo     = new ApiKeyRepository(Provider);
+        RouteRepo   = new RouteRepository(Provider);
+        ClusterRepo = new ClusterRepository(Provider);
+        DestRepo    = new DestinationRepository(Provider);
+        var l4RouteRepo = new L4RouteRepository(Provider);
+        var l4DestRepo  = new L4DestinationRepository(Provider);
 
         KeyService    = new ApiKeyService(KeyRepo);
         ConfigService = new ProxyConfigService(RouteRepo, ClusterRepo, DestRepo);
         InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, l4RouteRepo, l4DestRepo);
-
-        // 初始化表结构
-        InitService.InitTables();
     }
 
     /// <summary>获取一个新打开的 SQLite 连接（测试用于原生 SQL 验证）</summary>

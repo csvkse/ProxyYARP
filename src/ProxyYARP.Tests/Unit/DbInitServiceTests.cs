@@ -1,5 +1,6 @@
 using System.Data;
 using FluentAssertions;
+using ProxyYARP.Data.Db;
 using ProxyYARP.Tests.TestHelpers;
 
 namespace ProxyYARP.Tests.Unit;
@@ -20,7 +21,7 @@ public class DbInitServiceTests : IDisposable
     [Fact]
     public void InitTables_Should_Create_All_Tables()
     {
-        // 构造函数已调用 InitTables，验证各表可查询
+        // 构造函数已调用 MigrationRunner，验证各表可查询
         using var conn = _db.GetConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name";
@@ -38,10 +39,10 @@ public class DbInitServiceTests : IDisposable
     }
 
     [Fact]
-    public void InitTables_Is_Idempotent()
+    public void Migrate_Is_Idempotent()
     {
-        // 多次调用不应报错（使用 IF NOT EXISTS）
-        var act = () => _db.InitService.InitTables();
+        // 多次执行迁移不应报错
+        var act = () => MigrationRunner.Migrate(_db.Provider);
         act.Should().NotThrow();
         act.Should().NotThrow();
     }
