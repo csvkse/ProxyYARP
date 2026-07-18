@@ -150,7 +150,7 @@ docker run -d --restart always \
 
 > `ACCESS_KEY` 仅在数据库为空的首启时生效；之后以 DB 内 Key 为准，更换需通过 Web 控制台或 API。
 
-> 📌 镜像以**非 root 用户（UID 1654）**运行，基于 `runtime-deps:10.0-noble-chiseled`（精简 Ubuntu，无 shell/ICU/tzdata，约 105M；`InvariantGlobalization` 下无需 ICU）。
+> 📌 镜像以**非 root 用户（UID 1654）**运行，基于 `runtime-deps:10.0-noble-chiseled`（精简 Ubuntu，无 shell/ICU/tzdata，仅约 44M；`InvariantGlobalization` 下无需 ICU）。
 > 从旧版 root 镜像升级且复用已有 volume 时，需先修正属主，否则报 `attempt to write a readonly database`：
 > ```bash
 > docker run --rm -v proxyyarp-data:/data --user root alpine chown -R 1654:1654 /data
