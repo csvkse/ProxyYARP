@@ -122,15 +122,15 @@ jobs:
             dotnet publish src/ProxyYARP/ProxyYARP.csproj -c Release -r ${{ matrix.rid }} -o publish_output
           fi
 
-      # Windows 打包为 zip
+      # Windows 打包为 zip（必须携带 SQLite 原生库 e_sqlite3.dll，NativeAOT 下为独立文件）
       - name: Archive production artifacts (Windows)
         if: matrix.os == 'windows-latest'
-        run: Compress-Archive -Path publish_output\ProxyYARP.exe -DestinationPath ProxyYARP-${{ matrix.rid }}.zip
+        run: Compress-Archive -Path publish_output\ProxyYARP.exe, publish_output\e_sqlite3.dll -DestinationPath ProxyYARP-${{ matrix.rid }}.zip
 
-      # Linux / macOS 打包为 tar.gz
+      # Linux / macOS 打包为 tar.gz（必须携带 SQLite 原生库 libe_sqlite3.so/.dylib）
       - name: Archive production artifacts (Unix)
         if: matrix.os != 'windows-latest'
-        run: tar -czvf ProxyYARP-${{ matrix.rid }}.tar.gz -C publish_output ProxyYARP
+        run: tar -czvf ProxyYARP-${{ matrix.rid }}.tar.gz -C publish_output ProxyYARP libe_sqlite3.*
 
       # 上传构建产物
       - name: Upload Artifacts
@@ -169,10 +169,10 @@ jobs:
 
             * **🪟 Windows**:
                 * 下载对应的 `.zip` 文件。
-                * 解压后在命令行运行 `ProxyYARP.exe -p 8080 -k "MySecretKey"`。
+                * 解压后（含 `ProxyYARP.exe` 与 SQLite 原生库 `e_sqlite3.dll`，**两者需放在同一目录**）运行 `ProxyYARP.exe -p 8080 -k "MySecretKey"`。
             * **🍎 macOS & 🐧 Linux**:
                 * 下载对应的 `.tar.gz` 文件。
-                * 打开终端，解压文件：`tar -xzvf ProxyYARP-*.tar.gz`。
+                * 打开终端，解压文件：`tar -xzvf ProxyYARP-*.tar.gz`（含主程序与 SQLite 原生库 `libe_sqlite3.so`/`.dylib`，**两者需放在同一目录**）。
                 * 赋予执行权限并运行：`chmod +x ProxyYARP && ./ProxyYARP -p 8080 -k "MySecretKey"`。
                 * Linux 支持安装为系统服务运行：`sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install`
                 * 也可使用 Docker：`docker run -d -p 8080:8080 -e ACCESS_KEY="MySecretKey" -v proxyyarp-data:/app/data ghcr.io/csvkse/proxyyarp:latest`

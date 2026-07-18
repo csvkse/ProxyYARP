@@ -25,7 +25,7 @@
 * **双层代理**：
   * **L7 (YARP)** — HTTP/HTTPS 反向代理，支持路由匹配、集群负载均衡、目标健康检查。
   * **L4 (TCP/UDP)** — 原生套接字端口转发，支持 TCP 长连接与 UDP 数据报，自带连接测试接口。
-* **原生编译 (Native AOT)**：极低内存占用、毫秒级启动、无依赖独立运行，**单文件部署**（Web 静态资源内嵌进 DLL）。
+* **原生编译 (Native AOT)**：极低内存占用、毫秒级启动、无 .NET 运行时依赖（主程序 + SQLite 原生库两个文件，同目录部署；Web 静态资源内嵌进主程序）。
 * **配置热更新**：路由/集群/目标全部存于 SQLite，修改后毫秒级推送至 YARP 管道与 L4 引擎，**全程零重启**。
 * **SQLite 持久化**：基于 Dapper.AOT 源码生成器（`DapperAotStrict`，禁止反射回退），AOT 完全兼容。
 * **Web 管理界面**：Vue 3 + Tailwind CSS SPA 内嵌于二进制，路由、集群、密钥、TCP 转发可视化管理。
@@ -272,7 +272,7 @@ volumes:
 
 ### 编译发布 (Native AOT)
 
-Native AOT 编译为无依赖单文件，**Web 静态资源自动内嵌**。
+Native AOT 编译为主程序 + SQLite 原生库（`e_sqlite3.dll` / `libe_sqlite3.so`）两个文件，**Web 静态资源自动内嵌**进主程序。
 
 **Windows (x64)：**
 ```powershell
