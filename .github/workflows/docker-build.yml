@@ -49,6 +49,16 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
+      - name: Extract Version
+        id: extract_version
+        run: |
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/v* ]]; then
+            echo "version=${REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       # NativeAOT 仅支持本机构建，Dockerfile 固定 -r linux-x64，故只构建 amd64
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -60,4 +70,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=build-amd64
           cache-to: type=gha,mode=max,scope=build-amd64
+          build-args: |
+            APP_VERSION=${{ steps.extract_version.outputs.version }}
           push: ${{ github.event_name != 'pull_request' }}

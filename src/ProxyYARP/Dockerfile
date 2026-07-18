@@ -6,7 +6,12 @@ RUN apt-get update && apt-get install -y clang zlib1g-dev && rm -rf /var/lib/apt
 
 COPY . .
 WORKDIR /source/src/ProxyYARP
-RUN dotnet publish -c Release -r linux-x64 -o /app
+ARG APP_VERSION
+RUN if [ -n "$APP_VERSION" ]; then \
+      dotnet publish -c Release -r linux-x64 -o /app -p:Version=$APP_VERSION; \
+    else \
+      dotnet publish -c Release -r linux-x64 -o /app; \
+    fi
 
 FROM debian:bookworm-slim
 WORKDIR /app
