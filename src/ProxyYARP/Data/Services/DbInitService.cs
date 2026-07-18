@@ -12,6 +12,7 @@ public class DbInitService
     private readonly DestinationRepository _destRepo;
     private readonly L4RouteRepository _l4RouteRepo;
     private readonly L4DestinationRepository _l4DestRepo;
+    private readonly ProxyConfigGroupRepository _groupRepo;
     private readonly ProxyYARP.Cluster.NodeIdentityManager _identityManager;
 
     public DbInitService(
@@ -21,6 +22,7 @@ public class DbInitService
         DestinationRepository destRepo,
         L4RouteRepository l4RouteRepo,
         L4DestinationRepository l4DestRepo,
+        ProxyConfigGroupRepository groupRepo,
         ProxyYARP.Cluster.NodeIdentityManager identityManager)
     {
         _keyRepo = keyRepo;
@@ -29,6 +31,7 @@ public class DbInitService
         _destRepo = destRepo;
         _l4RouteRepo = l4RouteRepo;
         _l4DestRepo = l4DestRepo;
+        _groupRepo = groupRepo;
         _identityManager = identityManager;
     }
 
@@ -56,6 +59,10 @@ public class DbInitService
     public void SeedDemoData()
     {
         var groupId = _identityManager.GroupId;
+        
+        // Ensure group exists before seeding data to avoid Foreign Key constraint failures
+        _groupRepo.Upsert(groupId);
+
         var routes = _routeRepo.GetAll(groupId);
         if (routes.Count > 0) return;
 
