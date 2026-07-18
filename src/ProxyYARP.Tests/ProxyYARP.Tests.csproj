@@ -27,9 +27,9 @@
     <!-- 集成测试 Host -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"    Version="9.0.7" />
     <!-- SQLite（测试数据库） -->
-    <PackageReference Include="Microsoft.Data.Sqlite"               Version="9.0.7" />
+    <PackageReference Include="Microsoft.Data.Sqlite"               Version="10.0.10" />
     <!-- Dapper -->
-    <PackageReference Include="Dapper"                              Version="2.1.35" />
+    <PackageReference Include="Dapper"                              Version="2.1.79" />
   </ItemGroup>
 
   <ItemGroup>
