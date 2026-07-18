@@ -240,7 +240,6 @@
                         <div class="relative">
                             <select v-model="globalGroupId" @change="loadData" 
                                 class="cyber-select rounded px-3 py-1.5 text-sm w-48 lg:w-64 appearance-none cursor-pointer">
-                                <option value="">[ Default Group ]</option>
                                 <option v-for="grp in groupIds" :key="grp" :value="grp">{{ grp }}</option>
                             </select>
                             <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-cyber-muted">
@@ -1203,12 +1202,12 @@
                         try {
                             const groups = await api.fetch('/api/groups');
                             if(groups && Array.isArray(groups)) {
-                                groupIds.value = groups.filter(g => g !== 'default');
+                                groupIds.value = groups;
                             }
                         } catch(e) { console.error("Failed to fetch groups", e); }
                         
                         if(user && user.groupId && !globalGroupId.value) {
-                            globalGroupId.value = user.groupId === 'default' ? '' : user.groupId;
+                            globalGroupId.value = user.groupId;
                         }
                         
                         loadData();
