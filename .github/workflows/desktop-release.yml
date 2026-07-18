@@ -1,0 +1,193 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*" # 当推送形如 v1.0.0 的 tag 时自动触发打包并发布 Release
+  workflow_dispatch: # 允许在 GitHub Actions 面板手动点击运行
+    inputs:
+      build_all:
+        description: "构建所有平台"
+        required: true
+        default: false
+        type: boolean
+      platform:
+        description: "选择构建平台（当不构建所有平台时）"
+        required: true
+        default: "linux-x64"
+        type: choice
+        options:
+          - linux-x64
+          - linux-arm64
+          - win-x64
+          - win-arm64
+          - osx-arm64
+          - osx-x64
+
+jobs:
+  # 准备阶段：根据触发方式动态生成构建矩阵
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix
+        id: set-matrix
+        run: |
+          FULL_MATRIX='{"include":[{"os":"windows-latest","rid":"win-x64","target_name":"Windows x64","archive_ext":"zip"},{"os":"windows-latest","rid":"win-arm64","target_name":"Windows ARM64","archive_ext":"zip"},{"os":"ubuntu-latest","rid":"linux-x64","target_name":"Linux x64","archive_ext":"tar.gz"},{"os":"ubuntu-24.04-arm","rid":"linux-arm64","target_name":"Linux ARM64","archive_ext":"tar.gz"},{"os":"macos-latest","rid":"osx-arm64","target_name":"macOS Apple Silicon","archive_ext":"tar.gz"}]}'
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 手动触发：根据用户选择决定构建内容
+            if [ "${{ github.event.inputs.build_all }}" = "true" ]; then
+              echo "matrix=${FULL_MATRIX}" >> $GITHUB_OUTPUT
+              echo "手动触发：构建所有平台"
+            else
+              case "${{ github.event.inputs.platform }}" in
+                "linux-x64")
+                  echo 'matrix={"include":[{"os":"ubuntu-latest","rid":"linux-x64","target_name":"Linux x64","archive_ext":"tar.gz"}]}' >> $GITHUB_OUTPUT
+                  echo "手动触发：构建 Linux x64"
+                  ;;
+                "linux-arm64")
+                  echo 'matrix={"include":[{"os":"ubuntu-24.04-arm","rid":"linux-arm64","target_name":"Linux ARM64","archive_ext":"tar.gz"}]}' >> $GITHUB_OUTPUT
+                  echo "手动触发：构建 Linux ARM64"
+                  ;;
+                "win-x64")
+                  echo 'matrix={"include":[{"os":"windows-latest","rid":"win-x64","target_name":"Windows x64","archive_ext":"zip"}]}' >> $GITHUB_OUTPUT
+                  echo "手动触发：构建 Windows x64"
+                  ;;
+                "win-arm64")
+                  echo 'matrix={"include":[{"os":"windows-latest","rid":"win-arm64","target_name":"Windows ARM64","archive_ext":"zip"}]}' >> $GITHUB_OUTPUT
+                  echo "手动触发：构建 Windows ARM64"
+                  ;;
+                "osx-arm64")
+                  echo 'matrix={"include":[{"os":"macos-latest","rid":"osx-arm64","target_name":"macOS Apple Silicon","archive_ext":"tar.gz"}]}' >> $GITHUB_OUTPUT
+                  echo "手动触发：构建 macOS Apple Silicon"
+                  ;;
+                "osx-x64")
+                  echo 'matrix={"include":[{"os":"macos-13","rid":"osx-x64","target_name":"macOS Intel","archive_ext":"tar.gz"}]}' >> $GITHUB_OUTPUT
+                  echo "手动触发：构建 macOS Intel"
+                  ;;
+              esac
+            fi
+          else
+            # Tag 推送：构建所有平台（全量发布）
+            echo "matrix=${FULL_MATRIX}" >> $GITHUB_OUTPUT
+            echo "标签推送：构建所有平台"
+          fi
+
+  build:
+    name: Build ${{ matrix.target_name }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Linux x64 平台下的 NativeAOT 依赖包
+      - name: Install Linux dependencies (x64)
+        if: matrix.os == 'ubuntu-latest' && matrix.rid == 'linux-x64'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # Linux ARM64 原生编译依赖包
+      - name: Install Linux dependencies (ARM64 Native)
+        if: matrix.os == 'ubuntu-24.04-arm' && matrix.rid == 'linux-arm64'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # 执行发布工作 (开启 PublishAot=true 将编译出本机独立机器码)
+      - name: Publish Native AOT
+        shell: bash
+        run: |
+          # 从 git tag 提取纯版本号（去掉 'v' 前缀），tag 推送时为 v1.x.x，手动触发时回落到 csproj 默认值
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/v* ]]; then
+            VERSION="${REF#refs/tags/v}"
+          else
+            VERSION=""
+          fi
+
+          if [ -n "$VERSION" ]; then
+            echo "Using version from tag: $VERSION"
+            dotnet publish src/ProxyYARP/ProxyYARP.csproj -c Release -r ${{ matrix.rid }} -o publish_output -p:Version=$VERSION
+          else
+            echo "No tag version, using csproj default version"
+            dotnet publish src/ProxyYARP/ProxyYARP.csproj -c Release -r ${{ matrix.rid }} -o publish_output
+          fi
+
+      # Windows 打包为 zip
+      - name: Archive production artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        run: Compress-Archive -Path publish_output\ProxyYARP.exe -DestinationPath ProxyYARP-${{ matrix.rid }}.zip
+
+      # Linux / macOS 打包为 tar.gz
+      - name: Archive production artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        run: tar -czvf ProxyYARP-${{ matrix.rid }}.tar.gz -C publish_output ProxyYARP
+
+      # 上传构建产物
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProxyYARP-${{ matrix.rid }}
+          path: ProxyYARP-${{ matrix.rid }}.${{ matrix.archive_ext }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    # 只有当触发是 Tag 推送时，才会执行正式发布 release
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # 创建 GitHub Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*/*
+          # 自动生成基于 Commit/PR 的更新日志
+          generate_release_notes: true
+          body: |
+            🎉 **ProxyYARP 更新发布**
+
+            本次发布包含适用于各个主要操作系统的原生独立运行程序（Native AOT）。
+            **无需安装 .NET 运行时**，下载解压即可直接运行！
+
+            ### 📦 下载与运行指南
+
+            * **🪟 Windows**:
+                * 下载对应的 `.zip` 文件。
+                * 解压后在命令行运行 `ProxyYARP.exe -p 8080 -k "MySecretKey"`。
+            * **🍎 macOS & 🐧 Linux**:
+                * 下载对应的 `.tar.gz` 文件。
+                * 打开终端，解压文件：`tar -xzvf ProxyYARP-*.tar.gz`。
+                * 赋予执行权限并运行：`chmod +x ProxyYARP && ./ProxyYARP -p 8080 -k "MySecretKey"`。
+                * Linux 支持安装为系统服务运行：`sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install`
+                * 也可使用 Docker：`docker run -d -p 8080:8080 -e ACCESS_KEY="MySecretKey" -v proxyyarp-data:/app/data ghcr.io/csvkse/proxyyarp:latest`
+
+            ---
+
+            ### 💻 架构选择说明
+
+            | 架构标识 | 适用设备说明 |
+            | :--- | :--- |
+            | **`x64`** | 适用于绝大多数普通电脑和服务器（Intel / AMD 处理器）。 |
+            | **`arm64`** | 适用于 Apple Silicon (M1/M2/M3 等 Mac)、现代 ARM 架构的 Linux 服务器 (Oracle ARM 等)。 |
+
+            ---
+
+            *💡 详细的代码更新日志请参考下方自动生成的 Release Notes 👇*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
