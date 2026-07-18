@@ -25,16 +25,16 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [2/4] Starting ProxyYARP Web Control Plane (Port: 8080, Group: group-web)...
-start "ProxyYARP - Web ControlPlane" cmd /k "set NODE_ID=node-web-cp&& set Management__Enabled=true&& set Management__GroupId=group-web&& set Management__NodeName=Web-ControlPlane&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8080"
+start "ProxyYARP - Web ControlPlane" cmd /k "set NODE_ID=node-web-cp&& set Management__Enabled=true&& set GROUP_ID=group-web&& set NODE_NAME=Web-ControlPlane&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8080"
 
 echo Waiting 5 seconds for Control Plane (and DB Init) to initialize...
 timeout /t 5 /nobreak > nul
 
 echo [3/4] Starting ProxyYARP Web Worker (Port: 8081, Group: group-web)...
-start "ProxyYARP - Web Worker" cmd /k "set NODE_ID=node-web-worker&& set Management__Enabled=false&& set Management__GroupId=group-web&& set Management__NodeName=Web-Worker&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8081"
+start "ProxyYARP - Web Worker" cmd /k "set NODE_ID=node-web-worker&& set Management__Enabled=false&& set GROUP_ID=group-web&& set NODE_NAME=Web-Worker&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8081"
 
 echo [4/4] Starting ProxyYARP Api Worker (Port: 8082, Group: group-api)...
-start "ProxyYARP - Api Worker" cmd /k "set NODE_ID=node-api-worker&& set Management__Enabled=false&& set Management__GroupId=group-api&& set Management__NodeName=Api-Worker&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8082"
+start "ProxyYARP - Api Worker" cmd /k "set NODE_ID=node-api-worker&& set Management__Enabled=false&& set GROUP_ID=group-api&& set NODE_NAME=Api-Worker&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8082"
 
 echo.
 echo ===================================================
