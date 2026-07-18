@@ -25,16 +25,16 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [2/4] Starting ProxyYARP Control Plane (Port: 8080)...
-start "ProxyYARP - ControlPlane" cmd /k "set Management__Enabled=true&& set Management__GroupId=default&& set Management__NodeName=ControlPlane&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8080"
+start "ProxyYARP - ControlPlane" cmd /k "set Management__Enabled=true&& set Management__GroupId=default&& set Management__NodeName=ControlPlane&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8080"
 
 echo Waiting 5 seconds for Control Plane (and DB Init) to initialize...
 timeout /t 5 /nobreak > nul
 
 echo [3/4] Starting ProxyYARP Worker Node 1 (Port: 8081)...
-start "ProxyYARP - Worker 1" cmd /k "set Management__Enabled=false&& set Management__GroupId=default&& set Management__NodeName=Worker-1&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8081"
+start "ProxyYARP - Worker 1" cmd /k "set Management__Enabled=false&& set Management__GroupId=default&& set Management__NodeName=Worker-1&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8081"
 
 echo [4/4] Starting ProxyYARP Worker Node 2 (Port: 8082)...
-start "ProxyYARP - Worker 2" cmd /k "set Management__Enabled=false&& set Management__GroupId=default&& set Management__NodeName=Worker-2&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8082"
+start "ProxyYARP - Worker 2" cmd /k "set Management__Enabled=false&& set Management__GroupId=default&& set Management__NodeName=Worker-2&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8082"
 
 echo.
 echo ===================================================
