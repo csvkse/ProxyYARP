@@ -19,6 +19,7 @@ using ProxyYARP.Proxy.Tcp;
 using ProxyYARP.Proxy.Udp;
 using ProxyYARP.Proxy.Yarp;
 using ProxyYARP.Serialization;
+using Scalar.AspNetCore;
 
 namespace ProxyYARP;
 
@@ -137,6 +138,9 @@ partial class Program
             options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
         });
 
+        // OpenAPI 文档生成（AOT 兼容的内置生成器）
+        builder.Services.AddOpenApi();
+
         // 注册 Repository 和 Service
         builder.Services.AddSingleton<ApiKeyRepository>();
         builder.Services.AddSingleton<RouteRepository>();
@@ -232,6 +236,14 @@ partial class Program
 
         // 版本信息接口
         app.MapGet("/api/version", () => Results.Ok(new VersionResponse { Version = versionStr, Name = "ProxyYARP" }));
+
+        // 开发者文档（仅 Development 暴露，Production 不挂载）
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapOpenApi(); // /openapi/v1.json
+            app.MapScalarApiReference(); // /scalar/v1
+            Console.WriteLine($"* API Docs    : http://localhost:{port}/scalar/v1");
+        }
 
         // 注册 API 路由
         app.MapAuthApi();
