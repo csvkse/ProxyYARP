@@ -27,7 +27,7 @@
   * **L4 (TCP/UDP)** — 原生套接字端口转发，支持 TCP 长连接与 UDP 数据报，自带连接测试接口。
 * **原生编译 (Native AOT)**：极低内存占用、毫秒级启动、无 .NET 运行时依赖（主程序 + SQLite 原生库两个文件，同目录部署；Web 静态资源内嵌进主程序）。
 * **配置热更新**：路由/集群/目标全部存于 SQLite，修改后毫秒级推送至 YARP 管道与 L4 引擎，**全程零重启**。
-* **SQLite 持久化**：基于 Dapper.AOT 源码生成器（`DapperAotStrict`，禁止反射回退），AOT 完全兼容。
+* **SQLite / PostgreSQL 双支持**：默认嵌入式 SQLite 零配置；可切换至 PostgreSQL（Npgsql 10，Native AOT 兼容，纯托管无原生依赖），通过 `DB_TYPE`+`DB_CONNECTION` 环境变量一键切换，docker-compose 一键起完整栈。
 * **Web 管理界面**：Vue 3 + Tailwind CSS SPA 内嵌于二进制，路由、集群、密钥、TCP 转发可视化管理。
 * **API Key 鉴权**：三种凭证来源（`X-Api-Key` Header / `?key=` Query / `api_key` Cookie），首启自动生成强随机管理员 Key 并掩码显示。
 * **反代适配**：内置 `ForwardedHeaders`（仅信任回环地址），正确解析上游代理后的真实客户端 IP。
@@ -63,10 +63,10 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 
 ```
 ==========================================================
- ProxyYARP - YARP Reverse Proxy Manager v1.0.0
+ ProxyYARP - YARP Reverse Proxy Manager v1.1.0
 ==========================================================
 * Port        : 8080
-* DB Path     : Data Source=.../proxy.db;Cache=Shared;
+* Database    : sqlite | Data Source=.../proxy.db;Cache=Shared;
 * Admin Key   : abcd*** (已存在配置)
 * Environment : Production
 * Web UI      : http://localhost:8080/
@@ -100,7 +100,8 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 |--------|----------|------|--------|
 | `PROXY_PORT` | `ProxyConfig:Port` | 监听端口 | `8080` |
 | `ACCESS_KEY` | `ProxyConfig:AdminKey` | 初始管理员 Key（**仅首启空库时写入**，DB 已有 Key 则忽略） | 自动生成随机 Key |
-| `DB_PATH` | `ProxyConfig:DbPath` | SQLite 数据库文件路径 | `<程序目录>/proxy.db` |
+| `DB_TYPE` | `Database:Provider` | 数据库 Provider：`sqlite`（默认）/ `pgsql` | `sqlite` |
+| `DB_CONNECTION` | `Database:ConnectionString` | 连接字符串（pgsql 必填，如 `Host=pg;Port=5432;Database=proxyyarp;Username=u;Password=p`；sqlite 留空用 `<程序目录>/proxy.db`） | `""` |
 
 ### 命令行参数
 
@@ -108,9 +109,29 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 |------|------|----------|------|
 | `-p` | `--Port` | `ProxyConfig:Port` | 监听端口 |
 | `-k` | `--Key` | `ProxyConfig:AdminKey` | 初始管理员 Key |
-| `-db` | `--Db` | `ProxyConfig:DbPath` | SQLite 数据库路径 |
+| `--db-type` | — | `Database:Provider` | 数据库类型：sqlite / pgsql |
+| `--db-conn` | — | `Database:ConnectionString` | 数据库连接字符串 |
 | `-i` | `--install` | — | [Linux] 注册 systemd 服务 |
 | — | `--uninstall` | — | [Linux] 卸载 systemd 服务 |
+
+### 使用 PostgreSQL
+
+```bash
+docker run -d \
+  -e DB_TYPE=pgsql \
+  -e DB_CONNECTION="Host=pg.example.com;Port=5432;Database=proxyyarp;Username=u;Password=***" \
+  -e ACCESS_KEY="MySecretKey" \
+  -p 8080:8080 \
+  ghcr.io/csvkse/proxyyarp:latest
+```
+
+或使用项目根目录的 `docker-compose.yml` 一键启动（proxy + postgres）：
+
+```bash
+docker compose up -d
+```
+
+首次启动 `MigrationRunner` 自动建表（幂等，记录在 `__SchemaMigrations` 表）。
 
 ---
 
@@ -137,7 +158,7 @@ sudo ./ProxyYARP --uninstall
 
 ### Docker 部署
 
-镜像内置 `VOLUME /app/data` 与 `ENV DB_PATH=/app/data/proxy.db`，挂载卷即可持久化配置：
+镜像内置 `VOLUME /app/data` 与 `ENV DB_CONNECTION="Data Source=/app/data/proxy.db;Cache=Shared;"`（`DB_TYPE=sqlite`），挂载卷即可持久化配置：
 
 ```bash
 docker run -d --restart always \
@@ -146,6 +167,12 @@ docker run -d --restart always \
   -e ACCESS_KEY="MySecretKey" \
   -v proxyyarp-data:/app/data \
   ghcr.io/csvkse/proxyyarp:latest
+```
+
+**PostgreSQL 一键起完整栈：**
+
+```bash
+docker compose up -d
 ```
 
 > `ACCESS_KEY` 仅在数据库为空的首启时生效；之后以 DB 内 Key 为准，更换需通过 Web 控制台或 API。
@@ -237,12 +264,13 @@ volumes:
 | 库 | 版本 | 用途 |
 |----|------|------|
 | [Yarp.ReverseProxy](https://github.com/dotnet/yarp) | 2.3.0 | L7 反向代理核心（路由/集群/负载均衡/健康检查） |
-| [Dapper](https://github.com/DapperLib/Dapper) | 2.1.35 | 轻量 ORM，SQLite 数据访问 |
+| [Dapper](https://github.com/DapperLib/Dapper) | 2.1.79 | 轻量 ORM，SQLite/PostgreSQL 数据访问 |
 | [Dapper.AOT](https://github.com/DapperLib/DapperAOT) | 1.0.52 | 编译期 SQL 代码生成，AOT 零反射（`DapperAotStrict`） |
-| [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | 9.0.7 | SQLite 驱动 |
-| [Microsoft.Extensions.FileProviders.Embedded](https://github.com/dotnet/aspnetcore) | 9.0.7 | wwwroot 静态资源内嵌进单文件 |
+| [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | 10.0.10 | SQLite 驱动（默认 Provider） |
+| [Npgsql](https://github.com/npgsql/npgsql) | 10.0.3 | PostgreSQL 驱动（Native AOT 官方兼容，纯托管） |
+| [Microsoft.Extensions.FileProviders.Embedded](https://github.com/dotnet/aspnetcore) | 10.0.10 | wwwroot 静态资源内嵌进单文件 |
 | [Microsoft.AspNetCore.OpenApi](https://github.com/dotnet/aspnetcore) | 10.0.10 | 内置 OpenAPI 3.1 文档生成（AOT 兼容） |
-| [Scalar.AspNetCore](https://github.com/scalar/scalar) | 2.11.0 | OpenAPI 可视化调试 UI（仅 Development 挂载） |
+| [Scalar.AspNetCore](https://github.com/scalar/scalar) | 2.16.15 | OpenAPI 可视化调试 UI（仅 Development 挂载） |
 
 ### 平台与前端
 
@@ -266,10 +294,11 @@ volumes:
 | 文件/目录 | 职责 |
 |------|------|
 | `ProxyYARP.csproj` | 核心项目，Minimal API + `PublishAot`，`wwwroot/**` 内嵌，`DapperAotStrict` |
-| `Program.cs` | 入口：帮助/安装指令拦截、环境变量映射、配置加载、Kestrel 与代理模块装配 |
+| `Program.cs` | 入口：帮助/安装指令拦截、环境变量映射、配置加载、Provider 工厂、Kestrel 与代理模块装配 |
 | `Api/` | Minimal API 端点（Auth / Keys / Routes / Clusters / L4Routes） |
 | `Auth/` | `ApiKeyMiddleware`（Header/Query/Cookie 三来源鉴权） |
-| `Data/` | SQLite 上下文、实体、Repository、Service、种子数据 |
+| `Data/Db/` | `IDbProvider` 抽象 + Sqlite/PostgreSQL 实现 + `MigrationRunner` 版本化迁移 |
+| `Data/Models/` · `Data/Repositories/` · `Data/Services/` | 实体（原生 bool/DateTime）、Repository（注入 Provider）、Service 业务层、种子数据 |
 | `Proxy/Yarp/` | `DatabaseProxyConfigProvider`：DB → YARP 配置热推送 |
 | `Proxy/Tcp` · `Proxy/Udp/` | L4 转发引擎（HostedService） |
 | `Common/LinuxServiceInstaller.cs` | systemd 服务注册/卸载 |

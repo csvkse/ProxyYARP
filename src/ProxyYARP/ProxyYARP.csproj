@@ -9,7 +9,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <AssemblyName>ProxyYARP</AssemblyName>
     <!-- Dapper.AOT source generator interception -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Dapper.AOT</InterceptorsNamespaces>
