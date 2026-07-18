@@ -55,9 +55,11 @@ partial class Program
         // 环境变量映射（Docker 友好）
         var envMappings = new Dictionary<string, string>
         {
-            { "PROXY_PORT",  "ProxyConfig:Port" },
-            { "ACCESS_KEY",  "ProxyConfig:AdminKey" },
-            { "DB_PATH",     "ProxyConfig:DbPath" }
+            { "PROXY_PORT",    "ProxyConfig:Port" },
+            { "ACCESS_KEY",    "ProxyConfig:AdminKey" },
+            { "DB_PATH",       "ProxyConfig:DbPath" },
+            { "DB_TYPE",       "Database:Provider" },
+            { "DB_CONNECTION", "Database:ConnectionString" }
         };
 
         var memConfig = new Dictionary<string, string?>();
@@ -70,12 +72,14 @@ partial class Program
         // 命令行参数映射
         var switchMappings = new Dictionary<string, string>
         {
-            { "-p",    "ProxyConfig:Port" },
-            { "--Port","ProxyConfig:Port" },
-            { "-k",    "ProxyConfig:AdminKey" },
-            { "--Key", "ProxyConfig:AdminKey" },
-            { "-db",   "ProxyConfig:DbPath" },
-            { "--Db",  "ProxyConfig:DbPath" }
+            { "-p",        "ProxyConfig:Port" },
+            { "--Port",    "ProxyConfig:Port" },
+            { "-k",        "ProxyConfig:AdminKey" },
+            { "--Key",     "ProxyConfig:AdminKey" },
+            { "-db",       "ProxyConfig:DbPath" },
+            { "--Db",      "ProxyConfig:DbPath" },
+            { "--db-type", "Database:Provider" },
+            { "--db-conn", "Database:ConnectionString" }
         };
 
         var config = new ConfigurationBuilder()
@@ -111,6 +115,10 @@ partial class Program
         // 配置 SQLite 路径
         DbContext.Configure(dbPath);
 
+        // 数据库 Provider（sqlite 默认；pgsql 用 --db-type pgsql --db-conn "Host=..."）
+        var dbProvider = DatabaseProviderFactory.Create(
+            config["Database:Provider"], config["Database:ConnectionString"]);
+
         // 打印 Banner（在种子数据之后，以便正确提示 Key 状态）
         var version = typeof(Program).Assembly.GetName().Version;
         var versionStr = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "unknown";
@@ -142,6 +150,7 @@ partial class Program
         builder.Services.AddOpenApi();
 
         // 注册 Repository 和 Service
+        builder.Services.AddSingleton<IDbProvider>(dbProvider);
         builder.Services.AddSingleton<ApiKeyRepository>();
         builder.Services.AddSingleton<RouteRepository>();
         builder.Services.AddSingleton<ClusterRepository>();
