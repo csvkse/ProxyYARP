@@ -10,6 +10,7 @@ public static class DatabaseProviderFactory
         return (provider ?? "").Trim().ToLowerInvariant() switch
         {
             "" or "sqlite" => new SqliteDbProvider(connectionString),
+            "pgsql" or "postgres" or "postgresql" => new PostgreSqlDbProvider(connectionString),
             var other => throw new ArgumentException(
                 $"未知数据库 Provider: '{other}'（支持: sqlite, pgsql）", nameof(provider))
         };
