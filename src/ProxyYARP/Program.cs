@@ -119,6 +119,9 @@ partial class Program
 
         // 构建 WebApplication
         var builder = WebApplication.CreateSlimBuilder(args);
+        builder.Configuration.AddInMemoryCollection(memConfig!);
+        builder.Configuration.AddCommandLine(args, switchMappings);
+        builder.Configuration.AddConfiguration(config);
 
         // 初始化代理模块 (L4/L7)
         var proxyModules = new IProxyModule[]

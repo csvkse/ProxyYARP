@@ -37,20 +37,24 @@ public class ApiKeyMiddleware
 
         // 读取 Key
         var key = ExtractKey(context);
+        
+        bool isApiRoute = path.StartsWith(_managementPath + "/api/", StringComparison.OrdinalIgnoreCase) || 
+                          (_managementPath == "" && path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase));
+
+        _logger.LogWarning($"[DEBUG] Path: '{path}', _managementPath: '{_managementPath}', isApiRoute: {isApiRoute}, key length: {key?.Length}");
+
+        // 如果不是 API 路由，且即使带了无效的 Key，我们也不应该拦截它，直接放行给 YARP 或其他处理器
+        if (!isApiRoute)
+        {
+            await _next(context);
+            return;
+        }
 
         if (string.IsNullOrWhiteSpace(key))
         {
-            // 管理 API 必须有 Key
-            if (path.StartsWith(_managementPath + "/api/", StringComparison.OrdinalIgnoreCase) || 
-                (_managementPath == "" && path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)))
-            {
-                context.Response.StatusCode = 401;
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync("{\"error\":\"Unauthorized: API key required\"}");
-                return;
-            }
-            // 非管理路由（代理路径）直接放行到 YARP
-            await _next(context);
+            context.Response.StatusCode = 401;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"error\":\"Unauthorized: API key required\"}");
             return;
         }
 
