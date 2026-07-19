@@ -6,8 +6,9 @@ using System.Data;
 
 namespace ProxyYARP.Data.Services;
 
-/// <summary>代理配置业务服务层（路由 + 集群 + 目标节点）</summary>
-public class ProxyConfigService
+/// <summary>代理配置业务服务层（路由 + 集群 + 目标节点�?/summary>
+[DapperAot]
+public partial class ProxyConfigService
 {
     private readonly IDbProvider _provider;
     private readonly RouteRepository _routeRepo;
@@ -260,3 +261,4 @@ public class ProxyConfigService
         return true;
     }
 }
+

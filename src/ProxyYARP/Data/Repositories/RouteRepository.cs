@@ -5,7 +5,7 @@ using ProxyYARP.Data.Models;
 namespace ProxyYARP.Data.Repositories;
 
 [DapperAot]
-public class RouteRepository : BaseRepository<ProxyRouteEntity>
+public partial class RouteRepository : BaseRepository<ProxyRouteEntity>
 {
     public RouteRepository(IDbProvider provider) : base(provider) { }
 
@@ -55,3 +55,4 @@ public class RouteRepository : BaseRepository<ProxyRouteEntity>
         WithConnection(c => c.Execute("""DELETE FROM "ProxyYARP_Routes" WHERE "Id" = @Id AND "GroupId" = @GroupId""", new { Id = id, GroupId = groupId }));
     }
 }
+

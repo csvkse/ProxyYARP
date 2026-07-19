@@ -5,6 +5,7 @@ public class ProxyNodeEntity
 {
     public string Id { get; set; }
     public string GroupId { get; set; }
+    public string? TargetGroupId { get; set; }
     public string Name { get; set; }
     public string? ManagementUrl { get; set; }
     public bool IsManagementEnabled { get; set; } = true;

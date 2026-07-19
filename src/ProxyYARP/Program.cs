@@ -58,7 +58,8 @@ partial class Program
             { "PROXY_PORT",    "ProxyConfig:Port" },
             { "ACCESS_KEY",    "ProxyConfig:AdminKey" },
             { "DB_TYPE",       "Database:Provider" },
-            { "DB_CONNECTION", "Database:ConnectionString" }
+            { "DB_CONNECTION", "Database:ConnectionString" },
+            { "MANAGEMENT_PATH", "Management:PathBase" }
         };
 
         var memConfig = new Dictionary<string, string?>();
@@ -227,13 +228,19 @@ partial class Program
 
         if (identityManager.IsManagementEnabled)
         {
+            var managementPath = config["Management:PathBase"] ?? "";
+            if (!string.IsNullOrWhiteSpace(managementPath) && !managementPath.StartsWith("/")) 
+            {
+                managementPath = "/" + managementPath;
+            }
+
             // 嵌入式静态文件（wwwroot 内嵌到 DLL）
             var assembly = typeof(Program).Assembly;
             var embeddedProvider = new ManifestEmbeddedFileProvider(assembly, "wwwroot");
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = embeddedProvider,
-                RequestPath = "",
+                RequestPath = managementPath,
                 OnPrepareResponse = ctx =>
                 {
                     // HTML 文件，强制不缓存
@@ -248,35 +255,46 @@ partial class Program
                 }
             });
 
-            // API Key 鉴权中间件
+            // 显式指定 UseRouting 在 UseStaticFiles 之后执行！
+            // 因为如果是 Minimal APIs 自动注入的 UseRouting，它会在最前面执行，导致所有的请求（包括静态文件）
+            // 都会首先进行路由匹配。一旦匹配到 YARP 的 catch-all 路由，Endpoint 就不为 null，
+            // UseStaticFiles 就会因为有了 Endpoint 而直接放弃处理静态文件，最终交给 YARP。
+            app.UseRouting();
+
+            // API Key 鉴权中间件 (只作用于 managementPath 下的 API 请求，因为我们不再全局注册)
             app.UseMiddleware<ApiKeyMiddleware>();
 
-            // 默认路由 -> 首页
-            app.MapGet("/", () => Results.Redirect("/index.html"));
+            IEndpointRouteBuilder mgmtGroup = app;
+            if (!string.IsNullOrWhiteSpace(managementPath))
+            {
+                mgmtGroup = app.MapGroup(managementPath);
+            }
 
+            // 默认路由 -> 首页
+            mgmtGroup.MapGet("/", () => Results.Redirect(managementPath + "/index.html"));
 
             // 版本信息接口
-            app.MapGet("/api/version", () => Results.Ok(new VersionResponse { Version = versionStr, Name = "ProxyYARP" }));
+            mgmtGroup.MapGet("/api/version", () => Results.Ok(new VersionResponse { Version = versionStr, Name = "ProxyYARP" }));
 
             // 开发者文档（仅 Development 暴露，Production 不挂载）
             if (app.Environment.IsDevelopment())
             {
-                app.MapOpenApi(); // /openapi/v1.json
-                app.MapScalarApiReference(); // /scalar/v1
-                Console.WriteLine($"* API Docs    : http://localhost:{port}/scalar/v1");
+                mgmtGroup.MapOpenApi(); // /openapi/v1.json
+                mgmtGroup.MapScalarApiReference(); // /scalar/v1
+                Console.WriteLine($"* API Docs    : http://localhost:{port}{managementPath}/scalar/v1");
             }
 
             // 注册 API 路由
-            app.MapAuthApi();
-            app.MapKeysApi();
-            app.MapRoutesApi();
-            app.MapClustersApi();
-            app.MapTcpRoutesApi();
-            app.MapNodesApi();
+            mgmtGroup.MapAuthApi();
+            mgmtGroup.MapKeysApi();
+            mgmtGroup.MapRoutesApi();
+            mgmtGroup.MapClustersApi();
+            mgmtGroup.MapTcpRoutesApi();
+            mgmtGroup.MapNodesApi();
         }
 
         // 诊断健康检查端点 (全局暴露，无鉴权，便于负载均衡器与控制台探测)
-        app.MapGet("/api/health", (ProxyYARP.Cluster.NodeIdentityManager ident) => Results.Ok(new 
+        app.MapGet("/api/health", (ProxyYARP.Cluster.NodeIdentityManager ident) => Results.Ok(new ProxyYARP.Serialization.HealthResponse
         {
             Status = "OK",
             NodeId = ident.NodeId,
@@ -318,6 +336,7 @@ partial class Program
         Console.WriteLine("  ACCESS_KEY              Initial admin API key");
         Console.WriteLine("  DB_TYPE                 Database provider: sqlite (default) | pgsql");
         Console.WriteLine("  DB_CONNECTION           Database connection string");
+        Console.WriteLine("  MANAGEMENT_PATH         UI and API path prefix (e.g. /proxyadmin)");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  ./ProxyYARP -p 8080 -k MyAdminKey");

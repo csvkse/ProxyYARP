@@ -5,7 +5,7 @@ using ProxyYARP.Data.Models;
 namespace ProxyYARP.Data.Repositories;
 
 [DapperAot]
-public class ProxyNodeRepository : BaseRepository<ProxyNodeEntity>
+public partial class ProxyNodeRepository : BaseRepository<ProxyNodeEntity>
 {
     public ProxyNodeRepository(IDbProvider provider) : base(provider) { }
 
@@ -38,7 +38,17 @@ public class ProxyNodeRepository : BaseRepository<ProxyNodeEntity>
 
     public List<ProxyNodeEntity> GetAll()
     {
-        return WithConnection(c => c.Query<ProxyNodeEntity>("""SELECT * FROM "ProxyYARP_Nodes" ORDER BY "LastHeartbeat" DESC""").AsList());
+        return WithConnection(c => c.Query<ProxyNodeEntity>("""
+            SELECT * FROM "ProxyYARP_Nodes" ORDER BY "LastHeartbeat" DESC
+            """).AsList());
+    }
+
+    public List<ProxyNodeEntity> GetByGroupId(string groupId)
+    {
+        return WithConnection(c => c.Query<ProxyNodeEntity>("""
+            SELECT * FROM "ProxyYARP_Nodes" WHERE "GroupId" = @GroupId ORDER BY "LastHeartbeat" DESC
+            """,
+            new { GroupId = groupId }).AsList());
     }
 
     public void Delete(string id)
@@ -54,4 +64,26 @@ public class ProxyNodeRepository : BaseRepository<ProxyNodeEntity>
             WHERE "Id" = @Id
             """, new { Id = id, Name = name, ManagementUrl = managementUrl }));
     }
+
+    public string? GetTargetGroupId(string id)
+    {
+        return WithConnection(c => c.QuerySingleOrDefault<string?>("""
+            SELECT "TargetGroupId" FROM "ProxyYARP_Nodes" WHERE "Id" = @Id
+            """, new { Id = id }));
+    }
+
+    public void SetTargetGroupId(string id, string targetGroupId)
+    {
+        WithConnection(c => c.Execute("""
+            UPDATE "ProxyYARP_Nodes" SET "TargetGroupId" = @TargetGroupId WHERE "Id" = @Id
+            """, new { Id = id, TargetGroupId = targetGroupId }));
+    }
+
+    public void AcknowledgeGroupChange(string id, string newGroupId)
+    {
+        WithConnection(c => c.Execute("""
+            UPDATE "ProxyYARP_Nodes" SET "GroupId" = @GroupId, "TargetGroupId" = NULL WHERE "Id" = @Id
+            """, new { Id = id, GroupId = newGroupId }));
+    }
 }
+

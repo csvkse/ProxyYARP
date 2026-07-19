@@ -13,7 +13,8 @@ public class L4RouteDto
 }
 
 /// <summary>四层配置业务服务</summary>
-public class L4ConfigService
+[DapperAot]
+public partial class L4ConfigService
 {
     private readonly IDbProvider _provider;
     private readonly L4RouteRepository _routeRepo;
@@ -81,7 +82,7 @@ public class L4ConfigService
 
     public L4ProxyRouteEntity CreateRoute(string groupId, string routeId, int listenPort, string protocol, string loadBalancingPolicy, List<L4ProxyDestinationEntity> destinations)
     {
-        // 检查端口是否已被占用
+        // 检查端口是否已被占�?
         var existing = _routeRepo.GetByListenPort(listenPort, groupId);
         if (existing != null)
             throw new Exception($"Listen port {listenPort} is already in use by another TCP route.");
@@ -135,7 +136,7 @@ public class L4ConfigService
         var entity = _routeRepo.GetById(id, groupId);
         if (entity == null) return false;
 
-        // 检查端口是否已被其他记录占用
+        // 检查端口是否已被其他记录占�?
         var existing = _routeRepo.GetByListenPort(listenPort, groupId);
         if (existing != null && existing.Id != id)
             throw new Exception($"Listen port {listenPort} is already in use by another TCP route.");
@@ -198,3 +199,4 @@ public class L4ConfigService
         return true;
     }
 }
+

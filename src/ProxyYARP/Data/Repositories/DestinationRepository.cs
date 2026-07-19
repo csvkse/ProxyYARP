@@ -5,7 +5,7 @@ using ProxyYARP.Data.Models;
 namespace ProxyYARP.Data.Repositories;
 
 [DapperAot]
-public class DestinationRepository : BaseRepository<ProxyDestinationEntity>
+public partial class DestinationRepository : BaseRepository<ProxyDestinationEntity>
 {
     public DestinationRepository(IDbProvider provider) : base(provider) { }
 
@@ -69,3 +69,4 @@ public class DestinationRepository : BaseRepository<ProxyDestinationEntity>
             new { ClusterId = clusterId, GroupId = groupId }));
     }
 }
+

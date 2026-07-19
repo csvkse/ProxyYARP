@@ -138,6 +138,9 @@ public sealed class PostgreSqlDbProvider : IDbProvider
                 FOREIGN KEY("GroupId") REFERENCES "ProxyYARP_ConfigGroups"("Id") ON DELETE CASCADE,
                 FOREIGN KEY("RouteId", "GroupId") REFERENCES "ProxyYARP_L4Routes"("RouteId", "GroupId") ON DELETE CASCADE
             );
+            """),
+        new DbMigration(2, "AddTargetGroupId", """
+            ALTER TABLE "ProxyYARP_Nodes" ADD COLUMN IF NOT EXISTS "TargetGroupId" TEXT;
             """)
     ];
 }

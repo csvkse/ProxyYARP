@@ -5,7 +5,7 @@ using ProxyYARP.Data.Models;
 namespace ProxyYARP.Data.Repositories;
 
 [DapperAot]
-public class ClusterRepository : BaseRepository<ProxyClusterEntity>
+public partial class ClusterRepository : BaseRepository<ProxyClusterEntity>
 {
     public ClusterRepository(IDbProvider provider) : base(provider) { }
 
@@ -54,3 +54,4 @@ public class ClusterRepository : BaseRepository<ProxyClusterEntity>
         WithConnection(c => c.Execute("""DELETE FROM "ProxyYARP_Clusters" WHERE "Id" = @Id AND "GroupId" = @GroupId""", new { Id = id, GroupId = groupId }));
     }
 }
+

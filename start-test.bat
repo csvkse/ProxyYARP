@@ -25,7 +25,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [2/4] Starting ProxyYARP Web Control Plane (Port: 8080, Group: group-web)...
-start "ProxyYARP - Web ControlPlane" cmd /k "set NODE_ID=node-web-cp&& set Management__Enabled=true&& set GROUP_ID=group-web&& set NODE_NAME=Web-ControlPlane&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8080"
+start "ProxyYARP - Web ControlPlane" cmd /k "set NODE_ID=node-web-cp&& set Management__Enabled=true&& set MANAGEMENT_PATH=/_proxyadmin&& set GROUP_ID=group-web&& set NODE_NAME=Web-ControlPlane&& set DB_TYPE=sqlite&& set DB_CONNECTION=Data Source=%~dp0DB\test.db&& dotnet run --no-build --no-launch-profile --project src\ProxyYARP\ProxyYARP.csproj -- -p 8080"
 
 echo Waiting 5 seconds for Control Plane (and DB Init) to initialize...
 timeout /t 5 /nobreak > nul
@@ -40,7 +40,7 @@ echo.
 echo ===================================================
 echo   Done! 1 Control Plane and 2 Worker Nodes are running.
 echo   You can open your browser to manage them at:
-echo   http://localhost:8080/
+echo   http://localhost:8080/_proxyadmin/
 echo.
 echo   Workers are listening on:
 echo   - [group-web] Worker : http://localhost:8081/

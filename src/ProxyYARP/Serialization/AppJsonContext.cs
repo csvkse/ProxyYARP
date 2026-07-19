@@ -36,9 +36,13 @@ namespace ProxyYARP.Serialization;
 [JsonSerializable(typeof(NodeDto))]
 [JsonSerializable(typeof(List<NodeDto>))]
 [JsonSerializable(typeof(UpdateNodeRequest))]
+[JsonSerializable(typeof(UpdateNodeGroupRequest))]
 [JsonSerializable(typeof(StatusResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
 [JsonSerializable(typeof(VersionResponse))]
+[JsonSerializable(typeof(GroupDetailDto))]
+[JsonSerializable(typeof(List<GroupDetailDto>))]
+[JsonSerializable(typeof(HealthResponse))]
 // 通用响应包装类型
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
@@ -66,4 +70,16 @@ public sealed class VersionResponse
 {
     public string Version { get; set; } = "";
     public string Name { get; set; } = "";
+}
+
+public sealed class HealthResponse
+{
+    public string Status { get; set; } = "";
+    public string NodeId { get; set; } = "";
+    public string GroupId { get; set; } = "";
+    public string Name { get; set; } = "";
+    public bool IsManagementEnabled { get; set; }
+    public string ManagementUrl { get; set; } = "";
+    public string Version { get; set; } = "";
+    public DateTime Timestamp { get; set; }
 }

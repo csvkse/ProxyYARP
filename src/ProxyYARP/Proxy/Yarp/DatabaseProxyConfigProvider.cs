@@ -56,6 +56,12 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
         }
     }
 
+    public void ForceReload()
+    {
+        _lastVersion = -1;
+        Reload();
+    }
+
     public IProxyConfig GetConfig() => _currentConfig;
 
     /// <summary>从 DB 重新构建配置并触发 YARP 热重载</summary>

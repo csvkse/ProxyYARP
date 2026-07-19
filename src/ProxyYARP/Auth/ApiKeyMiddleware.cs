@@ -12,11 +12,16 @@ public class ApiKeyMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ApiKeyMiddleware> _logger;
+    private readonly string _managementPath;
 
-    public ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger)
+    public ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, IConfiguration config)
     {
         _next = next;
         _logger = logger;
+        var mPath = config["Management:PathBase"] ?? "";
+        if (!string.IsNullOrWhiteSpace(mPath) && !mPath.StartsWith("/")) 
+            mPath = "/" + mPath;
+        _managementPath = mPath;
     }
 
     public async Task InvokeAsync(HttpContext context, ApiKeyService keyService)
@@ -24,7 +29,7 @@ public class ApiKeyMiddleware
         var path = context.Request.Path.Value ?? "";
 
         // 静态资源和登录端点直接放行
-        if (IsPublicPath(path))
+        if (IsPublicPath(path, _managementPath))
         {
             await _next(context);
             return;
@@ -36,7 +41,8 @@ public class ApiKeyMiddleware
         if (string.IsNullOrWhiteSpace(key))
         {
             // 管理 API 必须有 Key
-            if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith(_managementPath + "/api/", StringComparison.OrdinalIgnoreCase) || 
+                (_managementPath == "" && path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)))
             {
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
@@ -85,13 +91,15 @@ public class ApiKeyMiddleware
         return null;
     }
 
-    private static bool IsPublicPath(string path)
+    private static bool IsPublicPath(string path, string managementPath)
     {
-        if (path == "/" || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase))
+        var basePath = string.IsNullOrEmpty(managementPath) ? "" : managementPath;
+
+        if (path == basePath + "/" || path == basePath || path.StartsWith(basePath + "/login", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
-            path.Equals("/api/version", StringComparison.OrdinalIgnoreCase))
+        if (path.Equals(basePath + "/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+            path.Equals(basePath + "/api/version", StringComparison.OrdinalIgnoreCase))
             return true;
 
         // 静态资源文件

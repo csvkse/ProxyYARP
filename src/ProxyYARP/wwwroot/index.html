@@ -146,8 +146,9 @@
             font-family: 'JetBrains Mono', Monaco, monospace;
             font-size: 13px;
             line-height: 1.6;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            white-space: pre;
+            overflow-x: auto;
+            max-width: 100%;
         }
 
         [v-cloak] { display: none; }
@@ -194,10 +195,13 @@
             </div>
         </div>
 
-        <!-- 娑撶粯甯堕崣鎵櫕闂?-->
-        <div v-else class="flex-1 flex flex-col md:flex-row h-screen">
+               <!-- 登录后主界面 -->
+        <div v-else class="flex-1 flex h-screen overflow-hidden">
+            <!-- Mobile Sidebar Overlay -->
+            <div v-if="isMobileMenuOpen" @click="isMobileMenuOpen = false" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden animate-fade-in"></div>
+
             <!-- Sidebar -->
-            <aside class="w-full md:w-64 glass-panel border-r border-[#1e1e3a] flex flex-col z-20">
+            <aside :class="['fixed md:static inset-y-0 left-0 w-64 glass-panel border-r border-[#1e1e3a] flex flex-col z-40 transform transition-transform duration-300 ease-in-out md:translate-x-0', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full']">
                 <div class="p-6 border-b border-[#1e1e3a] flex justify-between items-start">
                     <div>
                         <h1 class="font-display text-xl font-bold text-cyber-cyan drop-shadow-[0_0_5px_rgba(0,240,255,0.4)]">PROXY YARP</h1>
@@ -208,16 +212,21 @@
                     </button>
                 </div>
                 <nav class="flex-1 py-4 space-y-1 overflow-y-auto px-3">
-                    <a v-for="nav in navItems" :key="nav.id" href="#" @click.prevent="currentView = nav.id"
-                        :class="[
-                            'flex items-center px-4 py-3 rounded text-sm font-mono tracking-wide transition-all',
-                            currentView === nav.id 
-                                ? 'bg-cyber-cyan/10 text-cyber-cyan border-l-2 border-cyber-cyan shadow-[inset_0_0_12px_rgba(0,240,255,0.05)]' 
-                                : 'text-cyber-muted hover:bg-[#1a1a3a] hover:text-white'
-                        ]">
-                        <span class="mr-3 text-lg" v-html="nav.icon"></span>
-                        {{ t(nav.nameKey) }}
-                    </a>
+                    <template v-for="(nav, index) in navItems" :key="index">
+                        <div v-if="nav.isCategory" class="px-4 pt-4 pb-1 text-[10px] font-mono text-cyber-muted/60 uppercase tracking-widest mt-2">
+                            {{ t(nav.nameKey) }}
+                        </div>
+                        <a v-else href="#" @click.prevent="currentView = nav.id; isMobileMenuOpen = false"
+                            :class="[
+                                'flex items-center px-4 py-3 rounded text-sm font-mono tracking-wide transition-all',
+                                currentView === nav.id 
+                                    ? 'bg-cyber-cyan/10 text-cyber-cyan border-l-2 border-cyber-cyan shadow-[inset_0_0_12px_rgba(0,240,255,0.05)]' 
+                                    : 'text-cyber-muted hover:bg-[#1a1a3a] hover:text-white'
+                            ]">
+                            <span class="mr-3 text-lg" v-html="nav.icon"></span>
+                            {{ t(nav.nameKey) }}
+                        </a>
+                    </template>
                 </nav>
                 <div class="p-4 border-t border-[#1e1e3a] space-y-2">
                     <div class="px-2 py-1 flex items-center text-xs font-mono text-cyber-muted bg-black/20 rounded">
@@ -232,20 +241,26 @@
             </aside>
 
             <!-- Main Content -->
-            <main class="flex-1 bg-cyber-bg relative overflow-y-auto z-10 flex flex-col">
+            <main class="flex-1 bg-cyber-bg relative overflow-y-auto z-10 flex flex-col w-full min-w-0">
                 <!-- Top Nav / Header -->
-                <header class="p-4 border-b border-[#1e1e3a] flex justify-between items-center bg-cyber-surf sticky top-0 z-20">
-                    <div class="flex items-center space-x-4">
-                        <span class="text-sm font-mono text-cyber-muted uppercase tracking-wider">Node Group:</span>
-                        <div class="relative">
-                            <select v-model="globalGroupId" @change="loadData" 
-                                class="cyber-select rounded px-3 py-1.5 text-sm w-48 lg:w-64 appearance-none cursor-pointer">
-                                <option v-for="grp in groupIds" :key="grp" :value="grp">{{ grp }}</option>
-                            </select>
-                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-cyber-muted">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                <header class="p-3 md:p-4 border-b border-[#1e1e3a] flex justify-between items-center bg-cyber-surf sticky top-0 z-20">
+                    <div class="flex items-center space-x-3 md:space-x-4">
+                        <button @click="isMobileMenuOpen = true" class="md:hidden text-cyber-muted hover:text-white transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
+                        
+                        <template v-if="['nodes', 'routes', 'clusters', 'tcp'].includes(currentView)">
+                            <span class="text-xs md:text-sm font-mono text-cyber-muted uppercase tracking-wider hidden sm:inline">Node Group:</span>
+                            <div class="relative">
+                                <select v-model="globalGroupId" @change="loadData" 
+                                    class="cyber-select rounded px-2 md:px-3 py-1.5 text-xs md:text-sm w-32 sm:w-48 lg:w-64 appearance-none cursor-pointer">
+                                    <option v-for="grp in groupIds" :key="grp" :value="grp">{{ grp }}</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-cyber-muted">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
                             </div>
-                        </div>
+                        </template>
                     </div>
                 </header>
 
@@ -253,8 +268,58 @@
                     <!-- 鐟欏棗娴橀崚鍥ㄥ床 -->
                 <div class="max-w-6xl mx-auto h-full">
                     
+                    <div v-if="currentView === 'groups'" class="animate-fade-in">
+                        <div class="flex justify-between items-end mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('groups.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('groups.desc') }}</p>
+                            </div>
+                        </div>
+
+                        <div v-if="groupDetails.length === 0" class="glass-panel neon-border text-center py-12 rounded-lg">
+                            <p class="text-cyber-muted font-mono">{{ t('groups.noConfig') }}</p>
+                        </div>
+                        <div v-else class="glass-panel neon-border rounded-lg overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-[#1e1e3a] bg-black/40 text-xs font-mono tracking-wider text-cyber-muted uppercase">
+                                        <th class="p-4 font-normal">{{ t('groups.id') }}</th>
+                                        <th class="p-4 font-normal text-center">{{ t('groups.version') }}</th>
+                                        <th class="p-4 font-normal text-center">{{ t('groups.nodeCount') }}</th>
+                                        <th class="p-4 font-normal text-center">{{ t('groups.routeCount') }}</th>
+                                        <th class="p-4 font-normal text-center">{{ t('groups.clusterCount') }}</th>
+                                        <th class="p-4 font-normal text-center">{{ t('groups.l4RouteCount') }}</th>
+                                        <th class="p-4 font-normal text-right">{{ t('common.actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm font-mono divide-y divide-[#1e1e3a]/50">
+                                    <tr v-for="grp in groupDetails" :key="grp.groupId" class="hover:bg-white/5 transition-colors group">
+                                        <td class="p-4 text-cyber-cyan font-bold">{{ grp.groupId }}</td>
+                                        <td class="p-4 text-center">{{ grp.version }}</td>
+                                        <td class="p-4 text-center">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                                {{ grp.nodeCount }}
+                                            </span>
+                                        </td>
+                                        <td class="p-4 text-center text-cyber-green">{{ grp.routeCount }}</td>
+                                        <td class="p-4 text-center text-cyber-green">{{ grp.clusterCount }}</td>
+                                        <td class="p-4 text-center text-cyber-purple">{{ grp.l4RouteCount }}</td>
+                                        <td class="p-4 text-right space-x-3">
+                                            <button @click="switchGroup(grp.groupId)" class="text-cyber-muted hover:text-cyber-cyan transition-colors" :title="t('groups.switchTo')">
+                                                <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                                            </button>
+                                            <button @click="deleteGroup(grp.groupId)" class="text-cyber-muted hover:text-cyber-pink transition-colors" :title="t('common.del')">
+                                                <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Nodes View -->
-                    <div v-if="currentView === 'nodes'" class="animate-fade-in">
+                    <div v-else-if="currentView === 'nodes'" class="animate-fade-in">
                         <div class="flex justify-between items-center mb-6">
                             <div>
                                 <h2 class="text-2xl font-display font-bold">{{ t('nodes.title') }}</h2>
@@ -275,9 +340,17 @@
                                             <h3 class="font-display font-bold text-cyber-text text-lg">{{ node.name || node.id }}</h3>
                                         </div>
                                         <div class="text-xs font-mono text-cyber-muted mt-1 break-all">ID: {{ node.id }}</div>
-                                        <div class="text-xs font-mono text-cyber-muted mt-1">Group: <span class="text-cyber-cyan">{{ node.groupId }}</span></div>
+                                        <div class="text-xs font-mono text-cyber-muted mt-1 flex items-center space-x-2">
+                                            <span>Group: <span class="text-cyber-cyan">{{ node.groupId }}</span></span>
+                                            <span v-if="node.targetGroupId" class="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-500 text-[10px] rounded border border-yellow-500/30 animate-pulse" :title="t('nodes.migratingDesc')">
+                                                Migrating to {{ node.targetGroupId }}...
+                                            </span>
+                                        </div>
                                     </div>
                                     <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity" v-if="isAdmin">
+                                        <button @click="openNodeGroupModal(node)" class="p-1.5 text-cyber-muted hover:text-cyber-purple hover:bg-cyber-purple/10 rounded transition-colors" :title="t('nodes.changeGroupBtn')">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                                        </button>
                                         <button @click="openNodeModal(node)" class="p-1.5 text-cyber-muted hover:text-cyber-cyan hover:bg-cyber-cyan/10 rounded transition-colors" :title="t('common.edit')">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                         </button>
@@ -534,55 +607,162 @@
                     </div>
 
                     <!-- Help & Tricks View -->
-                    <div v-else-if="currentView === 'help'" class="animate-fade-in">
+                    <div v-else-if="currentView === 'help'" class="animate-fade-in flex flex-col h-full">
                         <div class="mb-6">
                             <h2 class="text-2xl font-display font-bold">{{ t('help.title') }}</h2>
                             <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('help.desc') }}</p>
                         </div>
                         
-                        <div class="space-y-6">
+                        <!-- Tabs Navigation -->
+                        <div class="flex space-x-1 mb-6 border-b border-[#1e1e3a]">
+                            <button @click="currentHelpTab = 'routing'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'routing' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabRouting') }}</button>
+                            <button @click="currentHelpTab = 'metadata'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'metadata' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabMetadata') }}</button>
+                            <button @click="currentHelpTab = 'lb'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'lb' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabLb') }}</button>
+                        </div>
+
+                        <!-- Routing Tab -->
+                        <div v-if="currentHelpTab === 'routing'" class="space-y-6 animate-fade-in">
+                            <!-- Exact Match -->
                             <div class="glass-panel neon-border rounded-lg p-6">
-                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q1Title') }}</h3>
-                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q1Desc')"></p>
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.routingQ1Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.routingQ1Desc')"></p>
                                 <div class="code-block p-4">
-                                    <span class="text-cyber-muted">// Route Matching Example</span><br/>
-                                    <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/api/{**catch-all}</span><br/>
-                                    <span class="text-cyber-purple">Request URL:</span> <span class="text-white">/api/v1/users/123</span><br/>
-                                    <span class="text-cyber-purple">Captured `catch-all`:</span> <span class="text-cyber-cyan">v1/users/123</span>
+                                    <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/api/health</span><br/><br/>
+                                    <span class="text-cyber-muted">// ✅ Matches exactly</span><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">/api/health</span><br/><br/>
+                                    <span class="text-cyber-muted">// ❌ Fails (subpaths not matched)</span><br/>
+                                    <span class="text-cyber-red">GET</span> <span class="text-white">/api/health/status</span>
+                                </div>
+                            </div>
+
+                            <!-- Catch-all Match -->
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.routingQ2Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.routingQ2Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/api/{**catch-all}</span><br/><br/>
+                                    <span class="text-cyber-muted">// ✅ Captures the rest of the path</span><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">/api/v1/users/123</span><br/>
+                                    <span class="text-cyber-dim">➔ Captured: </span> <span class="text-cyber-cyan">v1/users/123</span><br/><br/>
+                                    <span class="text-cyber-muted">// ➔ Proxy automatically forwards to:</span><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">https://backend-api.com/api/v1/users/123</span>
+                                </div>
+                            </div>
+
+                            <!-- Parameter Constraints Match -->
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.routingQ3Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.routingQ3Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/api/users/{id:int}</span><br/><br/>
+                                    <span class="text-cyber-muted">// ✅ Matches because '123' is an integer</span><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">/api/users/123</span><br/><br/>
+                                    <span class="text-cyber-muted">// ❌ Fails because 'abc' is not an integer</span><br/>
+                                    <span class="text-cyber-red">GET</span> <span class="text-white">/api/users/abc</span>
+                                </div>
+                            </div>
+
+                            <!-- Multi-domain Routing -->
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.routingQ4Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.routingQ4Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-muted">// Route 1:</span><br/>
+                                    <span class="text-cyber-purple">Hosts:</span> <span class="text-cyber-cyan">api.customer-a.com</span>, <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/{**catch-all}</span> ➔ <span class="text-white">Cluster A</span><br/><br/>
+                                    <span class="text-cyber-muted">// Route 2:</span><br/>
+                                    <span class="text-cyber-purple">Hosts:</span> <span class="text-cyber-cyan">api.customer-b.com</span>, <span class="text-cyber-purple">Path:</span> <span class="text-cyber-green">/{**catch-all}</span> ➔ <span class="text-white">Cluster B</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metadata Tab -->
+                        <div v-if="currentHelpTab === 'metadata'" class="space-y-6 animate-fade-in">
+                            <div class="glass-panel neon-border rounded-lg p-6 border-cyber-purple/50">
+                                <h3 class="text-cyber-purple font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.metaQ1Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-0" v-html="t('help.metaQ1Desc')"></p>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.metaQ2Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.metaQ2Desc')"></p>
+                                <div class="code-block p-4">
+                                    <span class="text-cyber-purple">Metadata JSON:</span> <span class="text-white">[{"PathRemovePrefix": "/demo"}]</span><br/><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">http://localhost:8080/demo/api/users</span><br/>
+                                    <span class="text-cyber-dim">➔ Strips "/demo" ➔ Proxy forwards to ➔</span><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">https://backend-api.com/api/users</span>
                                 </div>
                             </div>
 
                             <div class="glass-panel neon-border rounded-lg p-6">
-                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q2Title') }}</h3>
-                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q2Desc')"></p>
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.metaQ3Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.metaQ3Desc')"></p>
                                 <div class="code-block p-4">
-                                    <span class="text-cyber-muted">// Forwarding Flow</span><br/>
-                                    <span class="text-cyber-green">GET</span> http://localhost:8080/demo/get<br/>
-                                    <span class="text-cyber-dim">閳?Proxy forwards to 閳?/span><br/>
-                                    <span class="text-cyber-green">GET</span> https://httpbin.org/demo/get
+                                    <span class="text-cyber-purple">Metadata JSON:</span> <span class="text-white">[{"PathPrefix": "/v1"}]</span><br/><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">http://localhost:8080/api/users</span><br/>
+                                    <span class="text-cyber-dim">➔ Adds "/v1" ➔ Proxy forwards to ➔</span><br/>
+                                    <span class="text-cyber-green">GET</span> <span class="text-white">https://backend-api.com/v1/api/users</span>
                                 </div>
                             </div>
 
                             <div class="glass-panel neon-border rounded-lg p-6">
-                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q3Title') }}</h3>
-                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q3Desc')"></p>
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.metaQ4Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.metaQ4Desc')"></p>
                                 <div class="code-block p-4">
-                                    <span class="text-cyber-muted">// Transform: PathRemovePrefix</span><br/>
-                                    <span class="text-cyber-purple">Metadata:</span> <span class="text-white">[{"PathRemovePrefix": "/demo"}]</span><br/><br/>
-                                    <span class="text-cyber-green">GET</span> http://localhost:8080/demo/api/users<br/>
-                                    <span class="text-cyber-dim">閳?Strip prefix "/demo", forwards to 閳?/span><br/>
-                                    <span class="text-cyber-green">GET</span> https://httpbin.org/api/users
+                                    <span class="text-cyber-purple">Metadata JSON:</span> <br/>
+                                    <span class="text-white">[</span><br/>
+                                    <span class="text-white">  {"RequestHeader": "X-Tenant-Id", "Set": "customer-A"}</span><br/>
+                                    <span class="text-white">]</span><br/><br/>
+                                    <span class="text-cyber-dim">➔ Proxy appends Header: </span><span class="text-cyber-cyan">X-Tenant-Id: customer-A</span>
                                 </div>
                             </div>
 
                             <div class="glass-panel neon-border rounded-lg p-6">
-                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.q4Title') }}</h3>
-                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.q4Desc')"></p>
-                                <div class="code-block p-4">
-                                    <span class="text-cyber-muted">// Domain-based Routing (Multi-tenant)</span><br/>
-                                    <span class="text-cyber-purple">Route 1:</span> <span class="text-white">Host: api.a.com, Path: /api/{**catch-all} -> ClusterA</span><br/>
-                                    <span class="text-cyber-purple">Route 2:</span> <span class="text-white">Host: api.b.com, Path: /api/{**catch-all} -> ClusterB</span><br/>
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.metaQ5Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-0" v-html="t('help.metaQ5Desc')"></p>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.metaQ6Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-0" v-html="t('help.metaQ6Desc')"></p>
+                            </div>
+
+                            <!-- Docs Link -->
+                            <div class="glass-panel border-cyber-cyan/50 rounded-lg p-6 bg-cyber-cyan/5">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 flex items-center">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                    {{ t('help.metaDocsTitle') }}
+                                </h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4">{{ t('help.metaDocsDesc') }}</p>
+                                <div class="flex flex-col space-y-2">
+                                    <a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/reverse-proxy/configuration/transforms?view=aspnetcore-8.0" target="_blank" class="text-cyber-cyan hover:text-white hover:underline flex items-center text-sm font-mono">
+                                        <span class="mr-2">🔗</span> {{ t('help.metaDocsLink1') }}
+                                    </a>
+                                    <a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/reverse-proxy/extensibility/transforms?view=aspnetcore-8.0" target="_blank" class="text-cyber-cyan hover:text-white hover:underline flex items-center text-sm font-mono">
+                                        <span class="mr-2">🔗</span> {{ t('help.metaDocsLink2') }}
+                                    </a>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- LB Tab -->
+                        <div v-if="currentHelpTab === 'lb'" class="space-y-6 animate-fade-in">
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.lbQ1Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-0" v-html="t('help.lbQ1Desc')"></p>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.lbQ2Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-4" v-html="t('help.lbQ2Desc')"></p>
+                                <div class="code-block p-4 whitespace-pre text-cyber-green">{
+  "Active": {
+    "Enabled": true,
+    "Interval": "00:00:10",
+    "Timeout": "00:00:05",
+    "Policy": "ConsecutiveFailures",
+    "Path": "/health"
+  }
+}</div>
                             </div>
                         </div>
                     </div>
@@ -610,6 +790,14 @@
                         <div>
                             <label class="block text-xs text-cyber-muted mb-1">{{ t('nodes.modalUrl') }}</label>
                             <input v-model="form.managementUrl" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="http://10.0.0.1:8080">
+                        </div>
+                    </template>
+
+                    <!-- Node Group Form -->
+                    <template v-if="modal.type === 'nodegroup'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('nodes.modalGroupNew') }}</label>
+                            <input v-model="form.groupId" type="text" class="cyber-input w-full rounded px-3 py-2" required>
                         </div>
                     </template>
 
@@ -820,12 +1008,16 @@
                     adminConsole: 'Admin Console',
                     user: 'User',
                     logout: 'Logout',
+                    catEnv: 'Environment',
+                    groups: 'Tenant & Groups',
                     nodes: 'System Nodes',
-                    clusters: 'Clusters & Nodes',
-                    routes: 'Proxy Routes',
-                    tcp: 'L4 Proxies',
+                    catProxy: 'Proxy & Routing',
+                    clusters: 'Backend Clusters',
+                    routes: 'L7 HTTP Routes',
+                    tcp: 'L4 TCP/UDP',
+                    catSec: 'Security & Docs',
                     keys: 'Access Keys',
-                    help: 'Help & Tricks'
+                    help: 'Help & Docs'
                 },
                 common: {
                     edit: 'Edit',
@@ -894,6 +1086,19 @@
                     testBtn: 'Test Connection',
                     testing: 'Testing...'
                 },
+                groups: {
+                    title: 'Groups Management',
+                    desc: 'Manage proxy groups, clusters, and nodes isolation.',
+                    id: 'Group ID',
+                    version: 'Config Version',
+                    nodeCount: 'Nodes',
+                    routeCount: 'L7 Routes',
+                    clusterCount: 'Clusters',
+                    l4RouteCount: 'L4 Routes',
+                    switchTo: 'Switch',
+                    noConfig: 'No groups found.',
+                    deleteWarning: 'Deleting a group will wipe all its routes, clusters, and nodes. This action is irreversible. Proceed?'
+                },
                 nodes: {
                     title: 'System Nodes',
                     desc: 'Manage data plane nodes connected to this cluster.',
@@ -906,7 +1111,11 @@
                     noConfig: 'No nodes found.',
                     modalTitle: 'Node',
                     modalName: 'Node Name *',
-                    modalUrl: 'Management URL'
+                    modalUrl: 'Management URL',
+                    migratingDesc: 'This node has received a migration command and will join the new group shortly.',
+                    changeGroupBtn: 'Change Group',
+                    modalGroupTitle: 'Change Node Group',
+                    modalGroupNew: 'Target Group ID *'
                 },
                 keys: {
                     title: 'API Keys',
@@ -927,16 +1136,42 @@
                     createdBtn: 'I have saved it'
                 },
                 help: {
-                    title: 'Help & Tricks',
-                    desc: 'Learn about YARP routing logic and proxy tips.',
-                    q1Title: 'Route Wildcards: /{**catch-all}',
-                    q1Desc: 'In YARP, the <code>{**catch-all}</code> syntax is used to match the remaining parts of a URL path, including any slashes <code>/</code>.',
-                    q2Title: 'Default Forwarding Behavior',
-                    q2Desc: 'By default, YARP appends the matched path to the target destination address. For example, if your route is <code>/demo/{**catch-all}</code> and destination is <code>https://httpbin.org</code>, accessing <code>/demo/get</code> will be forwarded to <code>https://httpbin.org/demo/get</code>.',
-                    q3Title: 'Transforms: PathRemovePrefix',
-                    q3Desc: 'If you want to map <code>/demo</code> to the root <code>/</code> of the target, you can use Transforms. By setting the Metadata to <code>[{"PathRemovePrefix": "/demo"}]</code>, YARP will strip "/demo" from the matched path before forwarding. So <code>/demo/api/users</code> becomes just <code>/api/users</code> when sent to the backend.',
-                    q4Title: 'Same Path, Different Domains (Hosts)',
-                    q4Desc: 'ProxyYARP fully supports routing to different clusters based on the requested domain name, even if the paths are identical. Simply create multiple routes with the same <code>Match Path</code> but specify different domains in the <code>Hosts</code> field, and point them to their respective <code>Target Cluster ID</code>.'
+                    title: 'Help & Docs',
+                    desc: 'Learn about YARP routing logic, metadata transforms, and proxy tips.',
+                    tabRouting: 'Routing Basics',
+                    tabMetadata: 'Metadata & Transforms',
+                    tabLb: 'LB & Health Checks',
+                    
+                    routingQ1Title: '1. Exact Match',
+                    routingQ1Desc: 'Matches an exact path string. Does not match subpaths.',
+                    routingQ2Title: '2. Catch-all Match: /{**catch-all}',
+                    routingQ2Desc: 'In YARP, the <code>{**catch-all}</code> syntax captures the remaining parts of a URL path, including any slashes <code>/</code>.',
+                    routingQ3Title: '3. Parameter Match',
+                    routingQ3Desc: 'Matches dynamic segments in the path, with optional constraints like <code>:int</code>.',
+                    routingQ4Title: 'Multi-domain Routing (Same Path, Different Clusters)',
+                    routingQ4Desc: 'ProxyYARP supports routing to different clusters based on the requested domain name. Create multiple routes with the same <code>Match Path</code> but specify different domains in the <code>Hosts</code> field.',
+                    
+                    metaQ1Title: 'What is Metadata in ProxyYARP?',
+                    metaQ1Desc: 'Metadata field allows you to define YARP <b>Transforms</b> in JSON format. Transforms modify the request before it is sent to the destination, or modify the response. Format must be a valid JSON Array.',
+                    metaQ2Title: 'PathRemovePrefix (Strip Prefix)',
+                    metaQ2Desc: 'Removes a specific prefix from the request path before forwarding. Useful for exposing an API under a subpath while the backend expects requests at the root <code>/</code>.',
+                    metaQ3Title: 'PathPrefix (Add Prefix)',
+                    metaQ3Desc: 'Adds a specific prefix to the request path before forwarding.',
+                    metaQ4Title: 'RequestHeader (Inject Custom Headers)',
+                    metaQ4Desc: 'Appends or sets custom headers to the request sent to the backend cluster.',
+                    metaQ5Title: 'Advanced Path Transforms',
+                    metaQ5Desc: 'Use <code>PathSet</code> to hardcode the destination path or <code>PathPattern</code> to rewrite the path using pattern matching.',
+                    metaQ6Title: 'Query and Response Transforms',
+                    metaQ6Desc: 'Use <code>QueryValueParameter</code> / <code>QueryRemoveParameter</code> to modify URL query strings. Use <code>ResponseHeader</code> to modify backend responses.',
+                    metaDocsTitle: 'Official Documentation',
+                    metaDocsDesc: 'For a complete list of all supported transforms and advanced configurations, please refer to the official Microsoft documentation:',
+                    metaDocsLink1: 'YARP Configuration Transforms',
+                    metaDocsLink2: 'YARP Extensibility Transforms',
+                    
+                    lbQ1Title: 'Load Balancing Policies',
+                    lbQ1Desc: 'YARP supports several load balancing algorithms:<br/>- <b>RoundRobin</b>: (Default) Distributes requests sequentially across destinations.<br/>- <b>Random</b>: Selects a random destination.<br/>- <b>PowerOfTwoChoices</b>: Selects two random destinations and chooses the one with the fewest concurrent requests.<br/>- <b>FirstAlphabetical</b>: Selects the alphabetically first available destination.',
+                    lbQ2Title: 'Active Health Checks',
+                    lbQ2Desc: 'You can configure YARP to periodically probe destination URLs to ensure they are healthy. Put the following JSON into the Cluster\'s Health Check field. Make sure to define a <code>Health URL</code> in your Destinations.'
                 }
             },
             'zh-CN': {
@@ -956,12 +1191,16 @@
                     adminConsole: '管理控制台',
                     user: '用户',
                     logout: '退出登录',
-                    nodes: '系统节点',
-                    clusters: '集群与目标',
-                    routes: '代理路由',
-                    tcp: '四层代理',
-                    keys: '访问密钥',
-                    help: '帮助与技巧'
+                    catEnv: '系统与环境',
+                    groups: '租户与分组',
+                    nodes: '分布式节点',
+                    catProxy: '路由与代理',
+                    clusters: '后端集群',
+                    routes: 'L7 HTTP路由',
+                    tcp: 'L4 TCP/UDP',
+                    catSec: '安全与支持',
+                    keys: 'API 访问密钥',
+                    help: '帮助与文档'
                 },
                 common: {
                     edit: '编辑',
@@ -1030,6 +1269,19 @@
                     testBtn: '测试连通性',
                     testing: '探测中...'
                 },
+                groups: {
+                    title: '分组管理 (Groups)',
+                    desc: '管理不同环境的代理分组及其下属资源。',
+                    id: '分组 ID',
+                    version: '配置版本',
+                    nodeCount: '节点数',
+                    routeCount: 'L7 路由',
+                    clusterCount: '集群数',
+                    l4RouteCount: 'L4 路由',
+                    switchTo: '切换',
+                    noConfig: '暂无分组数据。',
+                    deleteWarning: '删除分组将级联清空该组下的所有路由、集群和节点数据且无法恢复。是否确认删除？'
+                },
                 nodes: {
                     title: '系统节点',
                     desc: '管理连接到此集群的底层数据面节点。',
@@ -1042,7 +1294,11 @@
                     noConfig: '暂无节点。',
                     modalTitle: '节点',
                     modalName: '节点名称 *',
-                    modalUrl: '管控 URL'
+                    modalUrl: '管控 URL',
+                    migratingDesc: '该节点已收到迁移指令，即将加入新的分组。',
+                    changeGroupBtn: '更改分组',
+                    modalGroupTitle: '更改节点分组',
+                    modalGroupNew: '目标分组 ID *'
                 },
                 keys: {
                     title: 'API 密钥',
@@ -1063,19 +1319,46 @@
                     createdBtn: '我已保存'
                 },
                 help: {
-                    title: '帮助与技巧',
-                    desc: '了解 YARP 的路由逻辑以及代理技巧。',
-                    q1Title: '路由通配符规则：/{**catch-all}',
-                    q1Desc: '在 YARP（以及 ASP.NET Core 路由）中，<code>{**catch-all}</code> 语法用于匹配 URL 路径的剩余所有部分，包括任何深度的斜杠 <code>/</code>。这使得网关能够捕获一个前缀下的所有请求并完美转发。',
-                    q2Title: '默认的路径透传行为',
-                    q2Desc: '默认情况下，YARP 会将匹配到的请求路径直接原样附加到目标地址 (Destination) 后面。例如，当您的路由配置为 <code>/demo/{**catch-all}</code> 且目标节点为 <code>https://httpbin.org</code> 时，访问 <code>http://localhost:8080/demo/get</code> 会被代理转发到 <code>https://httpbin.org/demo/get</code>。',
-                    q3Title: 'Transforms 转换器：PathRemovePrefix',
-                    q3Desc: '如果您想把 <code>/demo</code> 映射到目标站点的根路径 <code>/</code>，这是非常典型的重写需求。在 YARP 中，您可以通过在路由的 Metadata（元数据）中配置 Transforms 来实现。填入 <code>[{"PathRemovePrefix": "/demo"}]</code> 后，YARP 会在转发前自动剥离这段前缀，从而实现完美的去前缀转发。',
-                    q4Title: '多域名路由 (同路径，不同集群)',
-                    q4Desc: 'ProxyYARP 完美支持针对不同请求域名（Host），将相同路径映射到不同集群的需求。只需在【路由管理】中新建多条路由，配置相同的 <code>匹配路径</code>，但在 <code>域名 (Hosts)</code> 字段填入各自的域名，并指向不同的目标集群即可。YARP 会严格根据请求头中的 Host 字段进行流量分发。'
+                    title: '帮助与文档',
+                    desc: '了解 YARP 路由机制、元数据 (Transforms) 转换以及代理配置技巧。',
+                    tabRouting: '基础路由',
+                    tabMetadata: '元数据与转换器 (Transforms)',
+                    tabLb: '负载均衡与健康检查',
+
+                    routingQ1Title: '1. 精确匹配 (Exact Match)',
+                    routingQ1Desc: '仅对完全一致的 URL 路径生效。不会匹配任何子路径。常用于固定的独立接口。',
+                    routingQ2Title: '2. 通配符匹配 (Catch-all Match)',
+                    routingQ2Desc: '使用 <code>{**catch-all}</code> 语法可以捕获指定前缀后的所有剩余路径（包含斜杠）。默认情况下，捕获的部分会自动拼接在目标集群的地址后面，实现完美透传。',
+                    routingQ3Title: '3. 参数约束匹配 (Parameter Constraints)',
+                    routingQ3Desc: '可以通过路由参数语法提取 URL 中的特定段落，甚至增加类型约束（如 <code>:int</code> 限制必须为数字）。',
+                    routingQ4Title: '多域名路由 (同路径，不同集群)',
+                    routingQ4Desc: 'ProxyYARP 完美支持多租户。即使路由路径完全相同，只要在 <code>域名 (Hosts)</code> 字段填入不同的域名，YARP 就能根据请求头中的 Host 将流量分发到各自对应的集群。',
+
+                    metaQ1Title: '什么是 Metadata (元数据)？',
+                    metaQ1Desc: 'Metadata 字段用于配置 YARP 的 <b>Transforms (转换器)</b>。它允许您在代理转发过程中，动态修改 HTTP 请求的路径、请求头、查询参数，甚至修改后端返回的响应头。配置必须严格遵循 JSON 数组格式。',
+                    metaQ2Title: 'PathRemovePrefix (剥离/去掉前缀)',
+                    metaQ2Desc: '最常用的转换器。当外部访问路径包含某个前缀（如 <code>/demo</code>），而后端真实服务没有该前缀（根路径 <code>/</code>）时，使用此配置可在转发前自动砍掉该前缀。',
+                    metaQ3Title: 'PathPrefix (增加前缀)',
+                    metaQ3Desc: '与剥离前缀相反。用于在请求发往后端之前，在请求路径的最前方强行拼接一段指定的前缀。',
+                    metaQ4Title: 'RequestHeader (注入自定义请求头)',
+                    metaQ4Desc: '在请求发往后端集群时，自动增加或覆盖指定的 HTTP 请求头。常用于向后端传递租户标识或额外的环境变量。',
+                    metaQ5Title: '高级路径重写 (PathSet, PathPattern)',
+                    metaQ5Desc: '除了简单的增删前缀，使用 <code>PathSet</code> 可以直接将目标路径硬编码替换，使用 <code>PathPattern</code> 可以通过路由模式匹配来提取变量并重组完整路径。',
+                    metaQ6Title: '参数与响应头修改 (Query, ResponseHeader)',
+                    metaQ6Desc: '使用 <code>QueryValueParameter</code> / <code>QueryRemoveParameter</code> 可以动态增删 URL 后的查询参数。使用 <code>ResponseHeader</code> 可以修改后端返回的响应头（例如添加 CORS 跨域头或隐藏 Server 信息）。',
+                    metaDocsTitle: '官方完整文档',
+                    metaDocsDesc: 'YARP 提供了数十种强大的内置转换器，关于上述配置的全部清单和参数细节，请参考微软官方文档：',
+                    metaDocsLink1: 'YARP Transforms 配置指南 (内置转换器)',
+                    metaDocsLink2: 'YARP Transforms 扩展指南 (代码级扩展)',
+
+                    lbQ1Title: '负载均衡策略 (Load Balancing)',
+                    lbQ1Desc: 'YARP 支持多种内置的负载分发算法：<br/>- <b>RoundRobin</b>: (默认) 按顺序轮询分发给各个目标节点。<br/>- <b>Random</b>: 随机挑选一个存活节点。<br/>- <b>PowerOfTwoChoices</b>: 随机挑选两个节点，然后把请求发给当前并发数较小的那一个（推荐用于大并发场景）。<br/>- <b>FirstAlphabetical</b>: 永远只发给按字母表排序的首个可用节点（可用于主备模式）。',
+                    lbQ2Title: '主动健康检查 (Active Health Checks)',
+                    lbQ2Desc: '您可以让 YARP 定期探测目标节点的健康状况。在集群的健康检查配置框中填入以下 JSON 即可开启探测。开启后，请务必在对应目标节点中配置 <code>健康检查 URL</code>。'
                 }
             }        };
 
+        const basePath = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/$/i, '');
         const api = {
             async fetch(url, options = {}) {
                 options.credentials = 'same-origin';
@@ -1085,7 +1368,11 @@
                     options.body = JSON.stringify(options.body);
                     options.headers['Content-Type'] = 'application/json';
                 }
-                const res = await fetch(url, options);
+                
+                // Automatically prepend the dynamic basePath if url starts with /
+                const fullUrl = url.startsWith('/') ? basePath + url : url;
+                
+                const res = await fetch(fullUrl, options);
                 if (res.status === 401) {
                     throw new Error("UNAUTHORIZED");
                 }
@@ -1123,7 +1410,9 @@
                 const groupIds = ref([]); // List of available GroupIds
 
                 const currentView = ref('nodes'); // nodes, clusters, routes, keys, help
+                const currentHelpTab = ref('routing'); // routing, metadata, lb
                 const loadingData = ref(false);
+                const isMobileMenuOpen = ref(false);
 
                 // Data
                 const nodes = ref([]);
@@ -1132,13 +1421,18 @@
                 const routes = ref([]);
                 const tcpRoutes = ref([]);
                 const keys = ref([]);
+                const groupDetails = ref([]);
 
                 // Nav
                 const navItems = [
+                    { isCategory: true, nameKey: 'nav.catEnv' },
+                    { id: 'groups', nameKey: 'nav.groups', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>' },
                     { id: 'nodes', nameKey: 'nav.nodes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
-                    { id: 'clusters', nameKey: 'nav.clusters', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
+                    { isCategory: true, nameKey: 'nav.catProxy' },
                     { id: 'routes', nameKey: 'nav.routes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>' },
+                    { id: 'clusters', nameKey: 'nav.clusters', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
                     { id: 'tcp', nameKey: 'nav.tcp', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' },
+                    { isCategory: true, nameKey: 'nav.catSec' },
                     { id: 'keys', nameKey: 'nav.keys', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>' },
                     { id: 'help', nameKey: 'nav.help', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' }
                 ];
@@ -1249,8 +1543,10 @@
 
                     loadingData.value = true;
                     try {
-                        if(currentView.value === 'nodes') {
-                            nodes.value = await api.fetch('/api/nodes');
+                        if(currentView.value === 'groups') {
+                            groupDetails.value = await api.fetch('/api/groups/details');
+                        } else if(currentView.value === 'nodes') {
+                            nodes.value = await api.fetch(buildUrl('/api/nodes'));
                         } else if(currentView.value === 'clusters') {
                             clusters.value = await api.fetch(buildUrl('/api/clusters'));
                             destinations.value = await api.fetch(buildUrl('/api/clusters/destinations'));
@@ -1269,6 +1565,7 @@
 
                 // CRUD Modals
                 const openNodeModal = (n) => openModal('node', t('common.edit') + ' ' + t('nodes.modalTitle'), n);
+                const openNodeGroupModal = (n) => openModal('nodegroup', t('nodes.modalGroupTitle'), { id: n.id, groupId: n.groupId });
                 const openClusterModal = (c) => openModal('cluster', c ? t('common.edit') + ' ' + t('clusters.modalClusterTitle') : t('clusters.newBtn'), c);
                 const openDestModal = (clusterId, d) => openModal('dest', d ? t('common.edit') + ' ' + t('clusters.modalDestTitle') : t('clusters.addNode'), d, clusterId);
                 const openRouteModal = (r) => openModal('route', r ? t('common.edit') + ' ' + t('routes.modalTitle') : t('routes.newBtn'), r);
@@ -1292,6 +1589,29 @@
                     }
                 };
 
+                const switchGroup = (id) => {
+                    globalGroupId.value = id;
+                    if(!groupIds.value.includes(id)) {
+                        groupIds.value.push(id);
+                    }
+                    currentView.value = 'clusters';
+                };
+
+                const deleteGroup = async (id) => {
+                    if(!confirm(t('groups.deleteWarning'))) return;
+                    try {
+                        await api.fetch(`/api/groups/${id}`, { method: 'DELETE' });
+                        showToast(t('common.successDelete'));
+                        if (globalGroupId.value === id) {
+                            globalGroupId.value = '';
+                        }
+                        groupIds.value = groupIds.value.filter(g => g !== id);
+                        loadData();
+                    } catch(e) {
+                        showToast(e.message, true);
+                    }
+                };
+
                 const submitModal = async () => {
                     try {
                         const isEdit = !!form.id;
@@ -1299,6 +1619,9 @@
                         
                         if(modal.type === 'node') {
                             url = `/api/nodes/${form.id}`;
+                            method = 'PUT';
+                        } else if(modal.type === 'nodegroup') {
+                            url = `/api/nodes/${form.id}/group`;
                             method = 'PUT';
                         } else if(modal.type === 'cluster') {
                             url = isEdit ? `/api/clusters/${form.id}` : '/api/clusters';
@@ -1312,7 +1635,7 @@
                             url = isEdit ? `/api/keys/${form.id}` : '/api/keys';
                         }
 
-                        const reqUrl = (modal.type === 'key' || modal.type === 'node') ? url : buildUrl(url);
+                        const reqUrl = (modal.type === 'key' || modal.type === 'node' || modal.type === 'nodegroup') ? url : buildUrl(url);
                         const res = await api.fetch(reqUrl, { method, body: form });
                         showToast(isEdit ? t('common.successUpdate') : t('common.successCreate'));
                         closeModal();
@@ -1351,11 +1674,11 @@
                 return {
                     locale, toggleLocale, t,
                     isAuthenticated, currentUser, loading, loginKey, loginError, login, logout,
-                    currentView, navItems, loadingData, isAdmin,
-                    nodes, clusters, destinations, routes, tcpRoutes, keys, clusterDests,
+                    currentView, currentHelpTab, navItems, loadingData, isAdmin, isMobileMenuOpen,
+                    nodes, clusters, destinations, routes, tcpRoutes, keys, clusterDests, groupDetails,
                     toast, modal, form, closeModal, submitModal, newKeyResult,
-                    testingConnection, testTcpConnection, globalGroupId, loadData,
-                    openNodeModal, openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,
+                    testingConnection, testTcpConnection, globalGroupId, groupIds, loadData, switchGroup, deleteGroup,
+                    openNodeModal, openNodeGroupModal, openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,
                     deleteNode, deleteCluster, deleteDest, deleteRoute, deleteTcpRoute, deleteKey
                 };
             }

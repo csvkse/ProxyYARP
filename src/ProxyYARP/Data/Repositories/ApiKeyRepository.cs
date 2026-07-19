@@ -5,7 +5,7 @@ using ProxyYARP.Data.Models;
 namespace ProxyYARP.Data.Repositories;
 
 [DapperAot]
-public class ApiKeyRepository : BaseRepository<ApiKeyEntity>
+public partial class ApiKeyRepository : BaseRepository<ApiKeyEntity>
 {
     public ApiKeyRepository(IDbProvider provider) : base(provider) { }
 
@@ -66,3 +66,4 @@ public class ApiKeyRepository : BaseRepository<ApiKeyEntity>
         return WithConnection(c => c.ExecuteScalar<int>("""SELECT COUNT(*) FROM "ProxyYARP_ApiKeys" """) > 0);
     }
 }
+
