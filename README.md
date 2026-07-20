@@ -12,8 +12,8 @@
 - [⚡ 快速开始](#-快速开始)
 - [🖥️ Web 控制台](#️-web-控制台)
 - [⚙️ 高级配置](#️-高级配置)
-- [📦 生产环境部署](#-生产环境部署)
 - [📝 Metadata (Transforms) 配置](#-metadata-transforms-配置)
+- [📦 生产环境部署](#-生产环境部署)
 - [🔌 API 接口参考](#-api-接口参考)
 - [🏗️ 架构与工作流](#️-架构与工作流)
 - [📚 参考库与依赖](#-参考库与依赖)
@@ -56,19 +56,21 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 # http://localhost:8080/
 ```
 
+> 🐳 **Docker 用户** 请直接跳转至 [Docker 部署](#docker-部署) 章节，支持 SQLite / PostgreSQL 一键启动，无需本地安装任何运行时。
+
 ---
 
 ## 🖥️ Web 控制台
 
-访问根路径自动跳转控制台，共五组视图：
+访问根路径自动跳转控制台（SPA，所有功能均在同一页面的 Tab 中切换），共五组视图：
 
-| 页面 | 路径 | 用途 |
-|------|------|------|
-| **租户与分组** | `/index.html` (Groups) | 分组管理与切换，隔离管理不同环境。 |
-| **分布式节点** | `/index.html` (Nodes) | 系统节点大盘、心跳状态、热迁移更改分组。 |
-| **路由与集群** | `/index.html` (Routes/Clusters) | L7 HTTP 路由、元数据、集群负载均衡与目标节点配置。 |
-| **L4 TCP/UDP** | `/index.html` (TCP) | 四层代理转发。 |
-| **安全与帮助** | `/index.html` (Keys/Help) | API 密钥鉴权与内置详细文档指南。 |
+| 页面 | SPA Tab | 用途 |
+|------|---------|------|
+| **租户与分组** | Groups | 分组管理与切换，隔离管理不同环境。 |
+| **分布式节点** | Nodes | 系统节点大盘、心跳状态、热迁移更改分组。 |
+| **路由与集群** | Routes / Clusters | L7 HTTP 路由、元数据、集群负载均衡与目标节点配置。 |
+| **L4 TCP/UDP** | TCP | 四层代理转发规则管理。 |
+| **安全与帮助** | Keys / Help | API 密钥鉴权与内置详细文档指南。 |
 
 ---
 
@@ -83,7 +85,7 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 | `PROXY_PORT` | 监听端口 | `8080` |
 | `ACCESS_KEY` | 初始管理员 Key（**仅首启空库时写入**） | 自动生成随机 Key |
 | `DB_TYPE` | 数据库 Provider：`sqlite`（默认）/ `pgsql` | `sqlite` |
-| `DB_CONNECTION` | 连接字符串（pgsql 必填） | `""` |
+| `DB_CONNECTION` | 连接字符串。**SQLite** 默认路径 `data/proxy.db`（相对程序目录，留空即可）；**pgsql** 示例：`Host=127.0.0.1;Port=5432;Database=proxyyarp;Username=proxyyarp;Password=proxyyarp` | `""` |
 | `MANAGEMENT_PATH` | 自定义控制面板的路径前缀 (如 `/_proxyadmin`)，用于防止管理端点与业务路由冲突 | `""` (挂载在根目录) |
 | `NODE_GROUP_ID` | 该节点归属的租户集群 ID (默认属于 `default` 组) | `default` |
 | `NODE_NAME` | 物理网关的友好名称 (若空则使用生成的 Guid) | `""` |
@@ -134,17 +136,63 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 sudo ./ProxyYARP --uninstall
 ```
 
-### Docker 部署 (结合 PostgreSQL 多组分离)
+### Docker 部署
 
-使用项目根目录的 `docker-compose.yml` 即可一键启动控制面和数据面分离的高可用环境：
+#### 🗄️ SQLite（最简单，单节点，零依赖）
+
+数据持久化到本地目录 `./data`，无需任何外部数据库：
+
+```bash
+docker run -d \
+  --name proxyyarp \
+  -p 8080:8080 \
+  -e ACCESS_KEY="MySecretKey" \
+  -e DB_TYPE=sqlite \
+  -v "$(pwd)/data:/app/data" \
+  --restart unless-stopped \
+  ghcr.io/csvkse/proxyyarp:latest
+```
+
+> **Windows PowerShell** 用户请将 `$(pwd)` 替换为 `${PWD}`。
+
+#### 🐘 PostgreSQL（推荐生产，多节点共享配置）
+
+先启动 PostgreSQL，再启动 ProxyYARP：
+
+```bash
+# 1. 启动 PostgreSQL
+docker run -d \
+  --name proxyyarp-db \
+  -e POSTGRES_USER=proxyyarp \
+  -e POSTGRES_PASSWORD=proxyyarp \
+  -e POSTGRES_DB=proxyyarp \
+  -v pgdata:/var/lib/postgresql/data \
+  --restart unless-stopped \
+  postgres:18-alpine
+
+# 2. 启动 ProxyYARP（连接 PostgreSQL）
+docker run -d \
+  --name proxyyarp \
+  -p 8080:8080 \
+  -e ACCESS_KEY="MySecretKey" \
+  -e DB_TYPE=pgsql \
+  -e DB_CONNECTION="Host=proxyyarp-db;Port=5432;Database=proxyyarp;Username=proxyyarp;Password=proxyyarp" \
+  --link proxyyarp-db \
+  --restart unless-stopped \
+  ghcr.io/csvkse/proxyyarp:latest
+```
+
+#### 🚀 Docker Compose（高可用，控制面/数据面分离）
+
+使用项目根目录的 `docker-compose.yml` 一键启动控制面和数据面分离的高可用环境：
 
 ```yaml
 services:
   # 共享数据库层
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     ...
-    
+
   # 控制面 (管控界面)
   control-plane:
     image: ghcr.io/csvkse/proxyyarp:latest
@@ -165,17 +213,29 @@ services:
       NODE_GROUP_ID: "Tenant-A"
 ```
 
+```bash
+docker compose up -d
+```
+
 ---
 
 ## 🔌 API 接口参考
 
 所有接口前缀 `/api`，鉴权支持 `X-Api-Key` Header / `?key=` Query / `api_key` Cookie。
 
+> 💡 **完整交互式文档**（开发模式下）：`http://localhost:8080/scalar/v1`
+
 部分核心接口：
-- `GET/PUT/DELETE /api/routes/{id}` - L7 路由
-- `GET/PUT/DELETE /api/clusters/{id}` - 集群管理
-- `GET/PUT/DELETE /api/nodes/{id}` - 分布式物理节点与热迁移分配
-- `GET/PUT/DELETE /api/tcp-routes/{id}` - L4 转发
+
+| 资源 | 方法 | 说明 |
+|------|------|------|
+| `/api/routes` | `GET` / `POST` | 查询 / 创建 L7 路由 |
+| `/api/routes/{id}` | `GET` / `PUT` / `DELETE` | 查询 / 更新 / 删除单条路由 |
+| `/api/clusters/{id}` | `GET` / `PUT` / `DELETE` | 集群管理 |
+| `/api/nodes/{id}` | `GET` / `PUT` / `DELETE` | 分布式物理节点 & 热迁移分配 |
+| `/api/tcp-routes/{id}` | `GET` / `PUT` / `DELETE` | L4 TCP/UDP 转发规则 |
+| `/api/keys` | `GET` / `POST` / `DELETE` | API 密钥管理 |
+| `/health` | `GET` | 健康检查（数据面节点始终开放） |
 
 ---
 
@@ -216,14 +276,24 @@ services:
 
 ## 🔧 开发者指南
 
-**Windows (x64) 编译：**
+**本地开发（Watch 模式）：**
+```bash
+dotnet run --project src/ProxyYARP
+# 开发环境自动挂载 OpenAPI/Scalar 文档：http://localhost:8080/scalar/v1
+```
+
+**Windows (x64) Native AOT 编译：**
 ```powershell
 dotnet publish -c Release -r win-x64
 ```
 
-**Linux Docker 构建：**
+**Linux (x64) Native AOT 跨平台编译（需 Docker，在 Windows/macOS 上执行）：**
+```powershell
+# 使用项目自带脚本，输出到 publish/linux-x64/
+./build-linux-aot.ps1
+```
+
+**Linux Docker 镜像构建：**
 ```bash
 docker build -f src/ProxyYARP/Dockerfile -t proxyyarp .
 ```
-
-*开发环境将自动挂载 OpenAPI/Scalar 文档于 `http://localhost:8080/scalar/v1`*。
