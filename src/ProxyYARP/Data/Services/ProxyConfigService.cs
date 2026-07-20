@@ -51,9 +51,36 @@ public partial class ProxyConfigService
     public List<ProxyRouteEntity> GetEnabledRoutes(string groupId) => _routeRepo.GetAllEnabled(groupId);
     public ProxyRouteEntity? GetRouteById(string id, string groupId) => _routeRepo.GetById(id, groupId);
 
+    private void EnsureNoRouteConflict(string groupId, string? excludeId, string path, string? methods, string? hosts, int order)
+    {
+        var allEnabled = _routeRepo.GetAllEnabled(groupId);
+        
+        var p1 = path.Trim();
+        var m1 = string.Join(",", (methods ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).OrderBy(x => x));
+        var h1 = string.Join(",", (hosts ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).OrderBy(x => x));
+
+        foreach (var r in allEnabled)
+        {
+            if (excludeId != null && r.Id == excludeId) continue;
+            
+            var p2 = r.Path?.Trim() ?? "";
+            var m2 = string.Join(",", (r.Methods ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).OrderBy(x => x));
+            var h2 = string.Join(",", (r.Hosts ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).OrderBy(x => x));
+
+            if (order == r.Order &&
+                string.Equals(p1, p2, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(m1, m2, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(h1, h2, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"路由歧义冲突：与现有路由 '{r.RouteId}' 具有完全相同的匹配条件 (Path, Hosts, Methods) 和 Order({order})。请修改 Order 优先级或匹配条件！");
+            }
+        }
+    }
+
     public ProxyRouteEntity CreateRoute(string groupId, string routeId, string clusterId, string path,
         string? methods, string? hosts, int order, string? metadata)
     {
+        EnsureNoRouteConflict(groupId, null, path, methods, hosts, order);
         var now = DateTime.UtcNow;
         var entity = new ProxyRouteEntity
         {
@@ -86,9 +113,16 @@ public partial class ProxyConfigService
     {
         var entity = _routeRepo.GetById(id, groupId);
         if (entity == null) return false;
+        
+        var targetPath = string.IsNullOrWhiteSpace(path) ? entity.Path : path;
+        if (isEnabled)
+        {
+            EnsureNoRouteConflict(groupId, id, targetPath, methods, hosts, order);
+        }
+
         entity.RouteId = string.IsNullOrWhiteSpace(routeId) ? entity.RouteId : routeId;
         entity.ClusterId = string.IsNullOrWhiteSpace(clusterId) ? entity.ClusterId : clusterId;
-        entity.Path = string.IsNullOrWhiteSpace(path) ? entity.Path : path;
+        entity.Path = targetPath;
         entity.Methods = methods;
         entity.Hosts = hosts;
         entity.Order = order;

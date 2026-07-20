@@ -221,7 +221,10 @@
         </div>
         <div class="form-field">
           <label>目标地址 *</label>
-          <input class="form-input" v-model="destForm.address" placeholder="http://backend:8080">
+          <input class="form-input" v-model="destForm.address"
+            placeholder="https://backend:8080"
+            title="必须包含协议，例如 https://example.com 或 http://192.168.1.1:8080">
+          <div class="form-hint">⚠ 必须包含协议前缀（如 <code>https://</code> 或 <code>http://</code>）</div>
         </div>
       </div>
       <div class="form-field">
@@ -317,6 +320,10 @@ createApp({
 
     async function saveDest() {
       if (!destForm.value.address) { showToast('地址必填', 'error'); return; }
+      // 校验必须是含 scheme 的合法绝对 URI
+      try { new URL(destForm.value.address); } catch {
+        showToast('地址格式无效，必须包含协议（如 https://example.com）', 'error'); return;
+      }
       saving.value = true;
       try {
         const body = { destId: destForm.value.destId || null, address: destForm.value.address, health: destForm.value.health || null };

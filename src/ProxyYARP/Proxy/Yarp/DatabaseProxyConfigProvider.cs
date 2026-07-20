@@ -155,6 +155,16 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
 
             foreach (var d in destEntities)
             {
+                // 防御：Address 必须是含 scheme 的合法绝对 URI（如 https://...）
+                if (string.IsNullOrWhiteSpace(d.Address) ||
+                    !Uri.TryCreate(d.Address, UriKind.Absolute, out _))
+                {
+                    _logger.LogWarning(
+                        "[YARP] Destination '{DestId}' in cluster '{ClusterId}' has invalid Address '{Address}' (missing scheme?), skipping.",
+                        d.DestId, c.ClusterId, d.Address);
+                    continue;
+                }
+
                 destinations[d.DestId] = new DestinationConfig
                 {
                     Address = d.Address,

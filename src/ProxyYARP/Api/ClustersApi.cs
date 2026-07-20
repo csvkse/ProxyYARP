@@ -93,6 +93,8 @@ public static class ClustersApi
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
             if (string.IsNullOrWhiteSpace(req.Address)) return Results.BadRequest(new ErrorResponse { Error = "Address is required" });
+            if (!Uri.TryCreate(req.Address, UriKind.Absolute, out _))
+                return Results.BadRequest(new ErrorResponse { Error = "Address must be a valid absolute URI (e.g. https://example.com)" });
 
             var destId = string.IsNullOrWhiteSpace(req.DestId) ? Guid.NewGuid().ToString("N")[..8] : req.DestId;
             var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
@@ -112,6 +114,8 @@ public static class ClustersApi
         app.MapPut("/api/clusters/destinations/{id}", (string id, string? groupId, HttpContext ctx, UpdateDestinationRequest req, ProxyConfigService svc, ProxyYARP.Cluster.NodeIdentityManager ident) =>
         {
             if (!ctx.IsAdmin()) return Results.Json(new ErrorResponse { Error = "Forbidden" }, statusCode: 403);
+            if (!string.IsNullOrWhiteSpace(req.Address) && !Uri.TryCreate(req.Address, UriKind.Absolute, out _))
+                return Results.BadRequest(new ErrorResponse { Error = "Address must be a valid absolute URI (e.g. https://example.com)" });
             var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
