@@ -196,7 +196,7 @@
         </div>
 
                <!-- 登录后主界面 -->
-        <div v-else class="flex-1 flex h-screen overflow-hidden">
+        <div v-else class="flex-none flex h-screen min-h-0 overflow-hidden">
             <!-- Mobile Sidebar Overlay -->
             <div v-if="isMobileMenuOpen" @click="isMobileMenuOpen = false" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden animate-fade-in"></div>
 
@@ -241,7 +241,7 @@
             </aside>
 
             <!-- Main Content -->
-            <main class="flex-1 bg-cyber-bg relative overflow-y-auto z-10 flex flex-col w-full min-w-0">
+            <main class="flex-1 min-h-0 bg-cyber-bg relative overflow-y-auto z-10 flex flex-col w-full min-w-0">
                 <!-- Top Nav / Header -->
                 <header class="p-3 md:p-4 border-b border-[#1e1e3a] flex justify-between items-center bg-cyber-surf sticky top-0 z-20">
                     <div class="flex items-center space-x-3 md:space-x-4">
