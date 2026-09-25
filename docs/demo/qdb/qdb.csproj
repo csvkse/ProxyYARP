@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 这是诊断工具，不进主解决方案（ProxyYARP.sln 是硬编码列表），也不参与 AOT 发布 -->
+    <AssemblyName>qdb</AssemblyName>
+    <RootNamespace>ProxyYARP.Demo.Qdb</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 与主项目的 SQLite Provider 同源，保证读的是同一套文件格式 -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.3" />
+  </ItemGroup>
+
+</Project>
