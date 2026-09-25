@@ -1,6 +1,15 @@
 @echo off
 title ProxyYARP One-Click Multi-Node Test
 
+rem ===================================================
+rem  Usage
+rem  Starts 1 control plane + 2 worker nodes for local testing.
+rem ===================================================
+rem  NOTE: Config persists in SQLite (DB\test.db) and is NOT
+rem        cleared on restart. To test from a clean state,
+rem        delete the DB folder first (the script recreates it).
+rem ===================================================
+
 :MENU
 cls
 echo ===================================================
