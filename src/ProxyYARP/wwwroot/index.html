@@ -249,7 +249,7 @@
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                         </button>
                         
-                        <template v-if="['nodes', 'routes', 'clusters', 'tcp'].includes(currentView)">
+                        <template v-if="['nodes', 'routes', 'clusters', 'tcp', 'websites'].includes(currentView)">
                             <span class="text-xs md:text-sm font-mono text-cyber-muted uppercase tracking-wider hidden sm:inline">Node Group:</span>
                             <div class="relative">
                                 <select v-model="globalGroupId" @change="loadData" 
@@ -493,6 +493,60 @@
                                             <td class="text-right space-x-3" v-if="isAdmin">
                                                 <button @click="openRouteModal(r)" class="text-cyber-cyan hover:underline uppercase text-[10px]">{{ t('common.edit') }}</button>
                                                 <button @click="deleteRoute(r.id)" class="text-cyber-red hover:underline uppercase text-[10px]">{{ t('common.del') }}</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Websites View -->
+                    <div v-else-if="currentView === 'websites'" class="animate-fade-in">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 class="text-2xl font-display font-bold">{{ t('websites.title') }}</h2>
+                                <p class="text-cyber-muted text-sm font-mono mt-1">{{ t('websites.desc') }}</p>
+                            </div>
+                            <button @click="openWebsiteModal()" v-if="isAdmin" class="bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/20 hover:shadow-neon px-4 py-2 rounded text-sm font-mono uppercase tracking-widest transition-all">
+                                {{ t('websites.newBtn') }}
+                            </button>
+                        </div>
+
+                        <div class="glass-panel neon-border rounded-lg p-4 mb-6 text-xs font-mono text-cyber-muted leading-relaxed">
+                            <span class="text-cyber-cyan">{{ t('websites.hintTitle') }}</span>
+                            <span v-html="t('websites.hintBody')"></span>
+                        </div>
+
+                        <div class="glass-panel neon-border rounded-lg overflow-hidden">
+                            <div class="table-scroll">
+                                <table class="cyber-table w-full text-left border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th class="font-normal">{{ t('common.status') }}</th>
+                                            <th class="font-normal">{{ t('websites.name') }}</th>
+                                            <th class="font-normal">{{ t('websites.target') }}</th>
+                                            <th class="font-normal">{{ t('websites.access') }}</th>
+                                            <th class="font-normal text-right" v-if="isAdmin">{{ t('common.actions') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="font-mono divide-y divide-[#1e1e3a]">
+                                        <tr v-if="websites.length === 0">
+                                            <td colspan="5" class="p-8 text-center text-cyber-muted">{{ t('websites.noConfig') }}</td>
+                                        </tr>
+                                        <tr v-for="w in websites" :key="w.id">
+                                            <td>
+                                                <div :class="['w-2 h-2 rounded-full', w.isEnabled ? 'bg-cyber-green shadow-neon-green' : 'bg-cyber-muted']"></div>
+                                            </td>
+                                            <td class="font-bold">{{ w.name }}</td>
+                                            <td class="text-cyber-cyan">{{ w.url }}</td>
+                                            <td class="text-cyber-muted text-[11px]">
+                                                <a :href="w.accessUrl" target="_blank" class="hover:text-cyber-cyan">{{ t('websites.open') }}</a>
+                                                <span v-if="!w.rewriteBody" class="ml-2 text-cyber-amber">{{ t('websites.bodyOff') }}</span>
+                                            </td>
+                                            <td class="text-right space-x-3" v-if="isAdmin">
+                                                <button @click="openWebsiteModal(w)" class="text-cyber-cyan hover:underline uppercase text-[10px]">{{ t('common.edit') }}</button>
+                                                <button @click="deleteWebsite(w.id)" class="text-cyber-red hover:underline uppercase text-[10px]">{{ t('common.del') }}</button>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -886,6 +940,35 @@
                         </div>
                     </template>
 
+                    <!-- Website Proxy Form -->
+                    <template v-if="modal.type === 'website'">
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('websites.name') }} *</label>
+                            <input v-model="form.name" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="e.g. 公司官网" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('websites.modalTarget') }} *</label>
+                            <input v-model="form.url" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="https://example.com" required>
+                            <p class="text-[10px] text-cyber-muted mt-1 font-mono">{{ t('websites.modalTargetHint') }}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" v-model="form.rewriteBody" id="wbody" class="cyber-checkbox">
+                            <label for="wbody" class="text-xs text-white ml-2">{{ t('websites.rewriteBody') }}</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" v-model="form.rewriteCookies" id="wcookie" class="cyber-checkbox">
+                            <label for="wcookie" class="text-xs text-white ml-2">{{ t('websites.rewriteCookies') }}</label>
+                        </div>
+                        <div v-if="form.id" class="flex items-center space-x-2 mt-2">
+                            <input type="checkbox" v-model="form.isEnabled" id="wenable" class="cyber-checkbox">
+                            <label for="wenable" class="text-xs text-white ml-2">{{ t('common.enabled') }}</label>
+                        </div>
+                        <div v-if="websiteAccessPreview" class="mt-2 p-3 rounded border border-cyber-cyan/30 bg-cyber-cyan/5 text-[11px] font-mono break-all">
+                            <div class="text-cyber-muted mb-1">{{ t('websites.previewLabel') }}</div>
+                            <div class="text-cyber-cyan" v-html="websiteAccessPreview"></div>
+                        </div>
+                    </template>
+
                     <!-- TCP Route Form -->
                     <template v-if="modal.type === 'tcp'">
                         <div>
@@ -1015,6 +1098,7 @@
                     clusters: 'Backend Clusters',
                     routes: 'L7 HTTP Routes',
                     tcp: 'L4 TCP/UDP',
+                    websites: 'Website Proxy',
                     catSec: 'Security & Docs',
                     keys: 'Access Keys',
                     help: 'Help & Docs'
@@ -1085,6 +1169,28 @@
                     addNode: '+ Add Node',
                     testBtn: 'Test Connection',
                     testing: 'Testing...'
+                },
+                websites: {
+                    title: 'Website Proxies',
+                    desc: 'Add registered websites and reach them through the gateway prefix.',
+                    newBtn: '+ New Website',
+                    hintTitle: 'How to access >> ',
+                    hintBody: 'A registered site is reached at ' +
+                        '<span class="text-cyber-cyan">网关域名/{scheme}://目标站域名/路径</span> — ' +
+                        'e.g. <span class="text-cyber-cyan">/https://example.com/login</span>. ' +
+                        'Only authority entries added here can be proxied; anything else gets 403.',
+                    name: 'Name',
+                    target: 'Target Website',
+                    access: 'Access',
+                    open: 'Open',
+                    bodyOff: 'body rewrite off',
+                    noConfig: 'No websites configured.',
+                    modalTitle: 'Website Proxy',
+                    modalTarget: 'Website URL *',
+                    modalTargetHint: 'Enter the site itself, e.g. https://example.com — http:// and https:// are both supported.',
+                    rewriteBody: 'Rewrite HTML/CSS absolute paths (fix broken assets)',
+                    rewriteCookies: 'Isolate cookies per site (fix cookie conflicts)',
+                    previewLabel: 'Access entry will be:'
                 },
                 groups: {
                     title: 'Groups Management',
@@ -1198,6 +1304,7 @@
                     clusters: '后端集群',
                     routes: 'L7 HTTP路由',
                     tcp: 'L4 TCP/UDP',
+                    websites: '网站代理',
                     catSec: '安全与支持',
                     keys: 'API 访问密钥',
                     help: '帮助与文档'
@@ -1268,6 +1375,28 @@
                     addNode: '+ 添加节点',
                     testBtn: '测试连通性',
                     testing: '探测中...'
+                },
+                websites: {
+                    title: '网站代理',
+                    desc: '登记需要访问的网站，通过网关前缀统一访问。',
+                    newBtn: '+ 新增网站',
+                    hintTitle: '访问方式 >> ',
+                    hintBody: '已登记的网站通过 ' +
+                        '<span class="text-cyber-cyan">网关域名/{scheme}://目标站域名/路径</span> 访问，' +
+                        '例如 <span class="text-cyber-cyan">/https://example.com/login</span>。' +
+                        '只有在此登记的站点会被代理，其余一律返回 403。',
+                    name: '名称',
+                    target: '目标网站',
+                    access: '访问',
+                    open: '打开',
+                    bodyOff: '未改写正文',
+                    noConfig: '尚未配置网站代理。',
+                    modalTitle: '网站代理配置',
+                    modalTarget: '网站地址 *',
+                    modalTargetHint: '直接填写网站本身，如 https://example.com；同时支持 http:// 与 https://。',
+                    rewriteBody: '改写 HTML/CSS 中的绝对路径（修复资源挂载错误）',
+                    rewriteCookies: '按站点隔离 Cookie 作用域（修复多个站点登录串号）',
+                    previewLabel: '访问入口将是：'
                 },
                 groups: {
                     title: '分组管理 (Groups)',
@@ -1420,6 +1549,8 @@
                 const destinations = ref([]);
                 const routes = ref([]);
                 const tcpRoutes = ref([]);
+                const websites = ref([]);
+                const websiteAccessPreview = ref('');
                 const keys = ref([]);
                 const groupDetails = ref([]);
 
@@ -1432,6 +1563,7 @@
                     { id: 'routes', nameKey: 'nav.routes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>' },
                     { id: 'clusters', nameKey: 'nav.clusters', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
                     { id: 'tcp', nameKey: 'nav.tcp', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' },
+                { id: 'websites', nameKey: 'nav.websites', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>' },
                     { isCategory: true, nameKey: 'nav.catSec' },
                     { id: 'keys', nameKey: 'nav.keys', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>' },
                     { id: 'help', nameKey: 'nav.help', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' }
@@ -1473,12 +1605,19 @@
                     } else {
                         if(type==='cluster') { form.loadBalancing = 'RoundRobin'; form.isEnabled = true; }
                         if(type==='route') { form.order = 0; form.isEnabled = true; }
-                        if(type==='tcp') { 
+                        if(type==='tcp') {
                             form.protocol = 'TCP';
-                            form.listenPort = 8081; 
+                            form.listenPort = 8081;
                             form.loadBalancingPolicy = 'RoundRobin';
                             form.destinations = [{targetHost: '', targetPort: 80, weight: 1}];
-                            form.isEnabled = true; 
+                            form.isEnabled = true;
+                        }
+                        if(type==='website') {
+                            form.rewriteBody = true;
+                            form.rewriteCookies = true;
+                            form.isEnabled = true;
+                            form.url = '';
+                            form.name = '';
                         }
                         if(type==='key') { form.role = 'ReadOnly'; form.isEnabled = true; }
                         if(type==='dest') { form.isEnabled = true; }
@@ -1554,6 +1693,8 @@
                             routes.value = await api.fetch(buildUrl('/api/routes'));
                         } else if(currentView.value === 'tcp') {
                             tcpRoutes.value = await api.fetch(buildUrl('/api/tcp-routes'));
+                        } else if(currentView.value === 'websites') {
+                            websites.value = await api.fetch(buildUrl('/api/websites'));
                         } else if(currentView.value === 'keys' && isAdmin.value) {
                             keys.value = await api.fetch('/api/keys'); // keys usually don't need group isolation
                         }
@@ -1563,6 +1704,27 @@
 
                 watch(currentView, loadData);
 
+                // 网站代理：随输入实时预览访问入口（纯前端推算，不发起请求）
+                watch(() => [form.url, modal.type], () => {
+                    if (modal.type !== 'website') { websiteAccessPreview.value = ''; return; }
+                    const raw = (form.url || '').trim();
+                    if (!raw) { websiteAccessPreview.value = ''; return; }
+                    const withScheme = raw.includes('://') ? raw : 'https://' + raw;
+                    try {
+                        const u = new URL(withScheme);
+                        if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+                            websiteAccessPreview.value = `<span class="text-cyber-red">仅支持 http/https</span>`;
+                            return;
+                        }
+                        const auth = u.port ? `${u.hostname}:${u.port}` : u.hostname;
+                        const prefix = `${u.protocol}//${auth}`;
+                        websiteAccessPreview.value =
+                            `${window.location.origin}/<span class="text-white">${prefix}</span>/目标路径`;
+                    } catch (e) {
+                        websiteAccessPreview.value = `<span class="text-cyber-red">地址无法解析</span>`;
+                    }
+                }, { immediate: true });
+
                 // CRUD Modals
                 const openNodeModal = (n) => openModal('node', t('common.edit') + ' ' + t('nodes.modalTitle'), n);
                 const openNodeGroupModal = (n) => openModal('nodegroup', t('nodes.modalGroupTitle'), { id: n.id, groupId: n.groupId });
@@ -1570,6 +1732,7 @@
                 const openDestModal = (clusterId, d) => openModal('dest', d ? t('common.edit') + ' ' + t('clusters.modalDestTitle') : t('clusters.addNode'), d, clusterId);
                 const openRouteModal = (r) => openModal('route', r ? t('common.edit') + ' ' + t('routes.modalTitle') : t('routes.newBtn'), r);
                 const openTcpRouteModal = (r) => openModal('tcp', r ? t('common.edit') + ' ' + t('tcp.modalTitle') : t('tcp.newBtn'), r);
+                const openWebsiteModal = (w) => openModal('website', w ? t('common.edit') + ' ' + t('websites.modalTitle') : t('websites.newBtn'), w);
                 const openKeyModal = (k) => openModal('key', k ? t('common.edit') + ' ' + t('keys.modalTitle') : t('keys.newBtn'), k);
 
                 const testingConnection = ref(false);
@@ -1631,6 +1794,8 @@
                             url = isEdit ? `/api/routes/${form.id}` : '/api/routes';
                         } else if (modal.type === 'tcp') {
                             url = isEdit ? `/api/tcp-routes/${form.id}` : '/api/tcp-routes';
+                        } else if (modal.type === 'website') {
+                            url = isEdit ? `/api/websites/${form.id}` : '/api/websites';
                         } else if (modal.type === 'key') {
                             url = isEdit ? `/api/keys/${form.id}` : '/api/keys';
                         }
@@ -1662,6 +1827,7 @@
                 const deleteCluster = (id) => doDelete(`/api/clusters/${id}`);
                 const deleteDest = (id) => doDelete(`/api/clusters/destinations/${id}`);
                 const deleteRoute = (id) => doDelete(`/api/routes/${id}`);
+                const deleteWebsite = (id) => doDelete(`/api/websites/${id}`);
                 const deleteTcpRoute = (id) => doDelete(`/api/tcp-routes/${id}`);
                 const deleteKey = (id) => doDelete(`/api/keys/${id}`, true);
                 const deleteNode = (id) => doDelete(`/api/nodes/${id}`, true);
@@ -1676,6 +1842,7 @@
                     isAuthenticated, currentUser, loading, loginKey, loginError, login, logout,
                     currentView, currentHelpTab, navItems, loadingData, isAdmin, isMobileMenuOpen,
                     nodes, clusters, destinations, routes, tcpRoutes, keys, clusterDests, groupDetails,
+                    websites, websiteAccessPreview,
                     toast, modal, form, closeModal, submitModal, newKeyResult,
                     testingConnection, testTcpConnection, globalGroupId, groupIds, loadData, switchGroup, deleteGroup,
                     openNodeModal, openNodeGroupModal, openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,

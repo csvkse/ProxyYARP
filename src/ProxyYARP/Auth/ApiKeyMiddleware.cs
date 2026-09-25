@@ -18,10 +18,8 @@ public class ApiKeyMiddleware
     {
         _next = next;
         _logger = logger;
-        var mPath = config["Management:PathBase"] ?? "";
-        if (!string.IsNullOrWhiteSpace(mPath) && !mPath.StartsWith("/")) 
-            mPath = "/" + mPath;
-        _managementPath = mPath;
+        // 与 Program.cs 共用同一套归一化规则，避免「界面能开但 API 401」
+        _managementPath = ProxyYARP.Auth.ManagementPath.Resolve(config);
     }
 
     public async Task InvokeAsync(HttpContext context, ApiKeyService keyService)

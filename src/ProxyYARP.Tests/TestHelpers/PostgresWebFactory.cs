@@ -36,6 +36,7 @@ public class PostgresWebFactory : WebApplicationFactory<Program>
 
         builder.UseSetting("ProxyConfig:AdminKey", ProxyYarpWebFactory.AdminKey);
         builder.UseSetting("ProxyConfig:Port", "0");
+        builder.UseSetting("Management:PathBase", ProxyYarpWebFactory.ManagementPath);
     }
 
     public HttpClient CreateAdminClient()

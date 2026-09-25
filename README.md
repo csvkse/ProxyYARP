@@ -13,6 +13,7 @@
 - [🖥️ Web 控制台](#️-web-控制台)
 - [⚙️ 高级配置](#️-高级配置)
 - [📝 Metadata (Transforms) 配置](#-metadata-transforms-配置)
+- [🌐 网站代理](#-网站代理)
 - [📦 生产环境部署](#-生产环境部署)
 - [🔌 API 接口参考](#-api-接口参考)
 - [🏗️ 架构与工作流](#️-架构与工作流)
@@ -29,6 +30,7 @@
 * **数据面/控制面解耦**：工作节点可通过配置关闭管控 API (`Management:Enabled=false`) 仅暴露数据面板与健康检查接口，阻断公网/业务域的安全风险，全面拥抱分布式网关形态。
 * **双层代理**：
   * **L7 (YARP)** — HTTP/HTTPS 反向代理，支持路由匹配、集群负载均衡、目标健康检查。
+  * **网站代理** — 登记任意网站后，以 `网关域名/{scheme}://目标站/路径` 的形式直接访问（见下方专章）。
   * **L4 (TCP/UDP)** — 原生套接字端口转发，支持 TCP 长连接与 UDP 数据报，自带连接测试接口。
 * **原生编译 (Native AOT)**：极低内存占用、毫秒级启动、无 .NET 运行时依赖（主程序 + 数据库原生库同目录部署；Web 静态资源内嵌进主程序）。
 * **配置热更新**：路由/集群/目标修改后毫秒级推送至 YARP 管道与 L4 引擎，**全程零重启**。
@@ -52,8 +54,8 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 # 指定端口与管理员 Key 启动
 ./ProxyYARP -p 8080 -k "MySecretKey"
 
-# 浏览器打开管理界面
-# http://localhost:8080/
+# 浏览器打开管理界面（默认前缀 /_proxy）
+# http://localhost:8080/_proxy/
 ```
 
 > 🐳 **Docker 用户** 请直接跳转至 [Docker 部署](#docker-部署) 章节，支持 SQLite / PostgreSQL 一键启动，无需本地安装任何运行时。
@@ -62,13 +64,16 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 
 ## 🖥️ Web 控制台
 
-访问根路径自动跳转控制台（SPA，所有功能均在同一页面的 Tab 中切换），共五组视图：
+访问 `/{管理前缀}/` 自动跳转控制台（SPA，所有功能均在同一页面的 Tab 中切换），共六组视图：
+
+> 管理端默认挂在 **`/_proxy/`** 而非根路径——根路径要让给业务路由。需要回到根路径（旧行为）可设置 `MANAGEMENT_PATH=""`。
 
 | 页面 | SPA Tab | 用途 |
 |------|---------|------|
 | **租户与分组** | Groups | 分组管理与切换，隔离管理不同环境。 |
 | **分布式节点** | Nodes | 系统节点大盘、心跳状态、热迁移更改分组。 |
 | **路由与集群** | Routes / Clusters | L7 HTTP 路由、元数据、集群负载均衡与目标节点配置。 |
+| **网站代理** | Websites | 登记网站，通过网关前缀直接访问已登记的站点。 |
 | **L4 TCP/UDP** | TCP | 四层代理转发规则管理。 |
 | **安全与帮助** | Keys / Help | API 密钥鉴权与内置详细文档指南。 |
 
@@ -86,9 +91,10 @@ sudo ./ProxyYARP -p 8080 -k "MySecretKey" --install
 | `ACCESS_KEY` | 初始管理员 Key（**仅首启空库时写入**） | 自动生成随机 Key |
 | `DB_TYPE` | 数据库 Provider：`sqlite`（默认）/ `pgsql` | `sqlite` |
 | `DB_CONNECTION` | 连接字符串。**SQLite** 默认路径 `data/proxy.db`（相对程序目录，留空即可）；**pgsql** 示例：`Host=127.0.0.1;Port=5432;Database=proxyyarp;Username=proxyyarp;Password=proxyyarp` | `""` |
-| `MANAGEMENT_PATH` | 自定义控制面板的路径前缀 (如 `/_proxyadmin`)，用于防止管理端点与业务路由冲突 | `""` (挂载在根目录) |
-| `NODE_GROUP_ID` | 该节点归属的租户集群 ID (默认属于 `default` 组) | `default` |
-| `NODE_NAME` | 物理网关的友好名称 (若空则使用生成的 Guid) | `""` |
+| `MANAGEMENT_PATH` | 控制面板与管控 API 的路径前缀。默认 `/_proxy`，避免管理端点与业务 catch-all 路由抢匹配；**设为空串可回到根路径**（兼容旧行为） | `/_proxy` |
+| `NODE_ID` | 物理节点的唯一标识 ID，在 k8s/k3s 中建议使用 Downward API 映射 Pod Name 以保持固定 | 随机生成并保存至文件 |
+| `GROUP_ID` | 该节点归属的租户集群 ID (默认属于 `default` 组) | `default` |
+| `NODE_NAME` | 物理网关的友好名称 (若空则使用 NodeId) | `""` |
 | `MANAGEMENT_ENABLED`| 是否在该节点开放管控 API 和 Web 管理界面？ | `true` |
 
 ---
@@ -124,6 +130,70 @@ ProxyYARP 原生支持通过 JSON 配置 YARP Transforms。
 
 ---
 
+## 🌐 网站代理
+
+把要访问的网站登记到网关，之后直接通过一个链接访问它，不需要为每个网站单独建路由、建集群。
+
+### 怎么用
+
+在 **Web 控制台 → 网站代理 → 新增网站** 里填两项：
+
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| **名称** | 便于识别的备注名，仅用于展示 | `公司官网` |
+| **网站地址** | 目标站点本身，支持 `http://` 与 `https://` | `https://example.com` |
+
+保存后，访问入口形如：
+
+```
+https://你的网关域名/https://example.com/任意路径
+```
+
+需要走明文上游就用 `http://`：
+
+```
+https://你的网关域名/http://example.com/任意路径
+```
+
+下表是几个具体例子：
+
+| 目标站点 | 访问入口 |
+|----------|----------|
+| `https://example.com` | `https://gw.example.com/https://example.com/login` |
+| `http://legacy.internal:8080` | `https://gw.example.com/http://legacy.internal:8080/admin` |
+
+需要访问多个网站就添加多条，彼此互不干扰（每条各自独立转发、独立 Cookie 作用域）。
+
+### 安全模型
+
+**只有在这里登记过的站点才会被代理，其余一律 403**，包括云元数据地址与内网地址：
+
+```
+https://gw.example.com/http://169.254.169.254/latest/meta-data/   → 403 Forbidden
+```
+
+这是防止网关被当成开放代理（SSRF）的关键手段。匹配以 **authority（域名:端口）** 为准且大小写/默认端口不敏感，所以用 `http://` 前缀访问已登记的 `https://` 站点也命中的是同一条记录，无法通过改写协议前缀绕过白名单。
+
+> 未登记任何站点时，这条代理入口完全不会加载，请求返回 404。
+
+### 两个可调开关
+
+新增/编辑网站时可关闭以下改写，用于兼容个别站点：
+
+| 开关 | 默认 | 作用 |
+|------|------|------|
+| 改写 HTML/CSS 绝对路径 | 开 | 把页面里的 `/static/app.js` 改写成带网关前缀的形式，否则这些资源会挂掉 |
+| 按站点隔离 Cookie 作用域 | 开 | 把 `Set-Cookie: Path=/` 改写成该站点自己的前缀，否则多个站点的同名 Cookie 会互相串号 |
+
+### 已知限制
+
+* 已启用 **gzip/br 压缩** 的 HTML 响应不会改写正文（避免破坏压缩流），此时页面内绝对路径资源可能失效，可对该站点关掉压缩。
+* **JS 动态拼接的 URL**（如 `fetch("/api/x")`）不在改写范围内，重度前端 SPA 站点可能无法完整工作。
+* 该方式依赖浏览器原样传递路径中的 `//`；主流浏览器均支持，但部分中间链路（URL 短化服务、WAF）可能归一化路径。
+* 跨域绝对重定向会保留原样，交由浏览器正常跳转。
+
+---
+
 ## 📦 生产环境部署
 
 ### Linux systemd 部署 (一键安装/卸载)
@@ -137,6 +207,12 @@ sudo ./ProxyYARP --uninstall
 ```
 
 ### Docker 部署
+
+> ⚠️ 所有部署方式的 Web 控制台默认都在 **`/_proxy/`**，不是根路径：
+> ```bash
+> docker run -d --name proxyyarp -p 8080:8080 -e ACCESS_KEY="MySecretKey" -e DB_TYPE=sqlite -v "$(pwd)/data:/app/data" --restart unless-stopped ghcr.io/csvkse/proxyyarp:latest
+> # 打开 http://localhost:8080/_proxy/
+> ```
 
 #### 🗄️ SQLite（最简单，单节点，零依赖）
 
@@ -221,9 +297,9 @@ docker compose up -d
 
 ## 🔌 API 接口参考
 
-所有接口前缀 `/api`，鉴权支持 `X-Api-Key` Header / `?key=` Query / `api_key` Cookie。
+所有接口前缀 **`/{管理前缀}/api`**（默认 `/_proxy/api`），鉴权支持 `X-Api-Key` Header / `?key=` Query / `api_key` Cookie。
 
-> 💡 **完整交互式文档**（开发模式下）：`http://localhost:8080/scalar/v1`
+> 💡 **完整交互式文档**（开发模式下）：`http://localhost:8080/_proxy/scalar/v1`
 
 部分核心接口：
 
@@ -231,6 +307,9 @@ docker compose up -d
 |------|------|------|
 | `/api/routes` | `GET` / `POST` | 查询 / 创建 L7 路由 |
 | `/api/routes/{id}` | `GET` / `PUT` / `DELETE` | 查询 / 更新 / 删除单条路由 |
+| `/api/websites` | `GET` / `POST` | 查询 / 新增网站代理条目 |
+| `/api/websites/{id}` | `GET` / `PUT` / `DELETE` | 查询 / 更新 / 删除单条网站代理 |
+| `/api/websites/test-url` | `POST` | 预览网址归一化结果与访问入口 |
 | `/api/clusters/{id}` | `GET` / `PUT` / `DELETE` | 集群管理 |
 | `/api/nodes/{id}` | `GET` / `PUT` / `DELETE` | 分布式物理节点 & 热迁移分配 |
 | `/api/tcp-routes/{id}` | `GET` / `PUT` / `DELETE` | L4 TCP/UDP 转发规则 |
@@ -246,7 +325,8 @@ docker compose up -d
                  │           ProxyYARP            │
                  │  ┌──────────────────────────┐  │
    浏览器管理 ──▶ │  │ Minimal API + Web UI      │  │
-   (X-Api-Key)   │  │ (支持 NodeGroup 热迁移)   │  │
+   (X-Api-Key)   │  │ 挂载于 /_proxy（PathBase） │  │
+                 │  │ (支持 NodeGroup 热迁移)   │  │
                  │  └───────────┬──────────────┘  │
                  │              ▼ Dapper.AOT      │
                  │  ┌──────────────────────────┐  │
@@ -257,6 +337,8 @@ docker compose up -d
                  │  ┌───────────┴──────────────┐  │
    HTTP 流量 ──▶ │  │ YARP 管道 (L7)            │  │
                  │  │ DatabaseProxyConfigProvider│  │
+                 │  │  · 普通 L7 路由            │  │
+                 │  │  · 网站代理 (白名单 catch-all)│
                  │  ├──────────────────────────┤  │
    TCP/UDP ────▶ │  │ L4 引擎 (TcpProxyEngine)  │  │
                  │  └──────────────────────────┘  │
@@ -279,7 +361,7 @@ docker compose up -d
 **本地开发（Watch 模式）：**
 ```bash
 dotnet run --project src/ProxyYARP
-# 开发环境自动挂载 OpenAPI/Scalar 文档：http://localhost:8080/scalar/v1
+# 开发环境自动挂载 OpenAPI/Scalar 文档：http://localhost:8080/_proxy/scalar/v1
 ```
 
 **Windows (x64) Native AOT 编译：**

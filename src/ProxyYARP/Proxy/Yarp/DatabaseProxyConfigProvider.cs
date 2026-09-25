@@ -16,22 +16,29 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
     private readonly ProxyConfigService _configService;
     private readonly ProxyConfigGroupRepository _groupRepo;
     private readonly NodeIdentityManager _identityManager;
+    private readonly WebsiteConfigService _websiteService;
+    private readonly WebsiteAllowList _allowList;
     private readonly ILogger<DatabaseProxyConfigProvider> _logger;
 
     private volatile DatabaseProxyConfig _currentConfig;
     private volatile CancellationTokenSource _cts;
     private readonly Timer _timer;
     private int _lastVersion = -1;
+    private bool _websiteRoutesInjected;
 
     public DatabaseProxyConfigProvider(
         ProxyConfigService configService,
         ProxyConfigGroupRepository groupRepo,
         NodeIdentityManager identityManager,
+        WebsiteConfigService websiteService,
+        WebsiteAllowList allowList,
         ILogger<DatabaseProxyConfigProvider> logger)
     {
         _configService = configService;
         _groupRepo = groupRepo;
         _identityManager = identityManager;
+        _websiteService = websiteService;
+        _allowList = allowList;
         _logger = logger;
         _cts = new CancellationTokenSource();
         _currentConfig = BuildConfig();
@@ -91,10 +98,20 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
         return new DatabaseProxyConfig(routes, clusters, _cts.Token);
     }
 
+    /// <summary>网站代理路由的固定 ID 与集群 ID（整组共享一条路由，避免与 EnsureNoRouteConflict 冲突）</summary>
+    public const string WebsiteRouteId = "website-proxy";
+    public const string WebsiteClusterId = "website-proxy-cluster";
+
+    /// <summary>
+    /// 网站代理路由的匹配路径与 Order。
+    /// 必须排在最后（Order 越大优先级越低），避免抢走管理 API 与既有业务路由。
+    /// </summary>
+    public const int WebsiteRouteOrder = int.MaxValue;
+
     private List<RouteConfig> BuildRoutes()
     {
         var entities = _configService.GetEnabledRoutes(_identityManager.GroupId);
-        var result = new List<RouteConfig>(entities.Count);
+        var result = new List<RouteConfig>(entities.Count + 1);
 
         foreach (var e in entities)
         {
@@ -136,11 +153,84 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
                     Methods = methods,
                     Hosts = hosts
                 },
-                Transforms = transforms
+                Transforms = transforms,
+                // Metadata 原样下传给 transform provider（WebsiteProxyTransformProvider 依赖它做路由级门控）
+                Metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["DatabaseRouteId"] = e.RouteId
+                }
             });
         }
 
+        // 网站代理：注入全局唯一的 catch-all 路由（Order 最低，绝不抢占既有路由）
+        AppendWebsiteProxy(result);
+
         return result;
+    }
+
+    /// <summary>
+    /// 注入网站代理所需的 Route / Cluster（带 Memory destination 占位，运行期由 transform 改写目标）。
+    /// 没有可用站点时不注入路由，避免暴露无意义的 403 入口。
+    /// </summary>
+    private void AppendWebsiteProxy(List<RouteConfig> routes)
+    {
+        try
+        {
+            var groupId = _identityManager.GroupId;
+            var websites = _websiteService.GetAllEnabled(groupId);
+
+            // 更新白名单快照（无论是否注入路由都同步，保证禁用/删除立即生效）
+            _allowList.Replace(websites);
+
+            if (websites.Count == 0)
+            {
+                _websiteRoutesInjected = false;
+                return;
+            }
+
+        var anyBodyRewrite = false;
+        var anyCookieRewrite = false;
+        foreach (var w in websites)
+        {
+            if (w.RewriteBody) anyBodyRewrite = true;
+            if (w.RewriteCookies) anyCookieRewrite = true;
+        }
+
+        routes.Add(new RouteConfig
+        {
+            RouteId = WebsiteRouteId,
+            ClusterId = WebsiteClusterId,
+            Order = WebsiteRouteOrder,
+            Match = new RouteMatch
+            {
+                Path = "/{**catchall}",
+                Methods = null,
+                Hosts = null
+            },
+            Metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [WebsiteProxyTransformProvider.MetadataKey] = "true",
+                [WebsiteProxyTransformProvider.MetadataKey + ".AnyBodyRewrite"] =
+                    anyBodyRewrite ? "true" : "false",
+                [WebsiteProxyTransformProvider.MetadataKey + ".AnyCookieRewrite"] =
+                    anyCookieRewrite ? "true" : "false"
+            }
+        });
+
+        if (!_websiteRoutesInjected)
+        {
+            // 注意：日志模板里不要出现字面量花括号，ILogger 会把它当命名占位符并抛异常
+            _logger.LogInformation(
+                "[WebsiteProxy] 已启用 {WebsiteCount} 个站点（访问形式：网关域名/scheme://目标站/路径）",
+                websites.Count);
+            _websiteRoutesInjected = true;
+        }
+        }
+        catch (Exception ex)
+        {
+            // 网站代理装配失败绝不能连带整个 L7 配置重载失败（否则所有路由都会失效）
+            _logger.LogError(ex, "[WebsiteProxy] 装配网站代理路由失败，已跳过");
+        }
     }
 
     private List<ClusterConfig> BuildClusters()
@@ -179,6 +269,27 @@ public class DatabaseProxyConfigProvider : IProxyConfigProvider
                 Destinations = destinations,
                 HealthCheck = BuildHealthCheck(c.HealthCheckEnabled, c.ClusterId)
             });
+        }
+
+        // 网站代理集群：占位 destination（运行时被改写），不做健康检查
+        try
+        {
+            if (_websiteService.GetAllEnabled(_identityManager.GroupId).Count > 0 &&
+                !result.Any(c => c.ClusterId == WebsiteClusterId))
+            {
+                result.Add(new ClusterConfig
+                {
+                    ClusterId = WebsiteClusterId,
+                    Destinations = new Dictionary<string, DestinationConfig>
+                    {
+                        ["placeholder"] = new DestinationConfig { Address = "http://127.0.0.1:1/" }
+                    }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[WebsiteProxy] 装配网站代理集群失败，已跳过");
         }
 
         return result;

@@ -21,6 +21,9 @@ services:
       DB_TYPE: pgsql
       DB_CONNECTION: Host=postgres;Port=5432;Database=proxyyarp;Username=proxyyarp;Password=proxyyarp
       ACCESS_KEY: change-me-on-first-run
+      # 管理端路径前缀。默认即 /_proxy，这里显式写清楚；
+      # 设为空串可让管理界面回到根路径（会与业务 catch-all 路由抢匹配）。
+      MANAGEMENT_PATH: /_proxy
     ports:
       - "8080:8080"
     depends_on:

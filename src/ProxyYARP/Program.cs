@@ -66,7 +66,10 @@ partial class Program
         foreach (var (envVar, configKey) in envMappings)
         {
             var val = Environment.GetEnvironmentVariable(envVar);
-            if (!string.IsNullOrWhiteSpace(val)) memConfig[configKey] = val;
+            if (val == null) continue;
+            // MANAGEMENT_PATH 允许显式置空（=回到根路径），不能被当"未设置"过滤掉
+            if (string.IsNullOrWhiteSpace(val) && configKey != "Management:PathBase") continue;
+            memConfig[configKey] = val;
         }
 
         // 命令行参数映射
@@ -161,10 +164,12 @@ partial class Program
         builder.Services.AddSingleton<DestinationRepository>();
         builder.Services.AddSingleton<L4RouteRepository>();
         builder.Services.AddSingleton<L4DestinationRepository>();
+        builder.Services.AddSingleton<WebsiteRepository>();
         builder.Services.AddSingleton<DbInitService>();
         builder.Services.AddSingleton<ApiKeyService>();
         builder.Services.AddSingleton<ProxyConfigService>();
         builder.Services.AddSingleton<L4ConfigService>();
+        builder.Services.AddSingleton<WebsiteConfigService>();
 
         // 注册代理模块 (L4/L7)
         foreach (var module in proxyModules)
@@ -206,7 +211,7 @@ partial class Program
         Console.WriteLine($"* Environment : {env}");
         if (identityManager.IsManagementEnabled)
         {
-            Console.WriteLine($"* Web UI      : http://localhost:{port}/");
+            Console.WriteLine($"* Web UI      : http://localhost:{port}{ManagementPath.Resolve(config)}/");
         }
         else
         {
@@ -231,11 +236,8 @@ partial class Program
 
         if (identityManager.IsManagementEnabled)
         {
-            var managementPath = config["Management:PathBase"] ?? "";
-            if (!string.IsNullOrWhiteSpace(managementPath) && !managementPath.StartsWith("/")) 
-            {
-                managementPath = "/" + managementPath;
-            }
+            // 管理端路径前缀：默认 /_proxy，用 MANAGEMENT_PATH="" 显式清空即可回到根路径
+            var managementPath = ProxyYARP.Auth.ManagementPath.Resolve(config);
 
             // 嵌入式静态文件（wwwroot 内嵌到 DLL）
             var assembly = typeof(Program).Assembly;
@@ -292,6 +294,7 @@ partial class Program
             mgmtGroup.MapKeysApi();
             mgmtGroup.MapRoutesApi();
             mgmtGroup.MapClustersApi();
+            mgmtGroup.MapWebsitesApi();
             mgmtGroup.MapTcpRoutesApi();
             mgmtGroup.MapNodesApi();
         }
@@ -339,7 +342,7 @@ partial class Program
         Console.WriteLine("  ACCESS_KEY              Initial admin API key");
         Console.WriteLine("  DB_TYPE                 Database provider: sqlite (default) | pgsql");
         Console.WriteLine("  DB_CONNECTION           Database connection string");
-        Console.WriteLine("  MANAGEMENT_PATH         UI and API path prefix (e.g. /proxyadmin)");
+        Console.WriteLine("  MANAGEMENT_PATH         UI and API path prefix (default /_proxy; empty string = root)");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  ./ProxyYARP -p 8080 -k MyAdminKey");

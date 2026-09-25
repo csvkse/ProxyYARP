@@ -19,6 +19,13 @@ public class ProxyYarpWebFactory : WebApplicationFactory<Program>, IDisposable
     public const string AdminKey = "test-admin-key-12345";
     public const string ReadOnlyKey = "test-readonly-key-99";
 
+    /// <summary>
+    /// 集成测试里管理端固定挂在根路径。
+    /// 生产默认是 /_proxy，这里显式置空，让测试继续用 /api/... 直连，不必给每个断言加前缀。
+    /// 前缀本身的规则由 ManagementPathTests 单独覆盖。
+    /// </summary>
+    public const string ManagementPath = "";
+
     private readonly string _dbPath;
     private bool _disposed;
 
@@ -53,6 +60,7 @@ public class ProxyYarpWebFactory : WebApplicationFactory<Program>, IDisposable
         // 通过环境变量注入配置（比 IConfiguration 注入更早生效）
         builder.UseSetting("ProxyConfig:AdminKey", AdminKey);
         builder.UseSetting("ProxyConfig:Port", "0"); // 随机端口
+        builder.UseSetting("Management:PathBase", ManagementPath); // 测试固定根路径
     }
 
     /// <summary>获取预配置了 AdminKey 的 HttpClient</summary>

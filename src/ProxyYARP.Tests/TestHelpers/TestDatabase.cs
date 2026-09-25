@@ -25,6 +25,8 @@ public sealed class TestDatabase : IDisposable
     public ApiKeyService      KeyService    { get; }
     public ProxyConfigService ConfigService { get; }
     public DbInitService      InitService   { get; }
+    public WebsiteRepository  WebsiteRepo   { get; }
+    public WebsiteConfigService WebsiteService { get; }
 
     public TestDatabase()
     {
@@ -42,10 +44,12 @@ public sealed class TestDatabase : IDisposable
         GroupRepo   = new ProxyConfigGroupRepository(Provider);
         var l4RouteRepo = new L4RouteRepository(Provider);
         var l4DestRepo  = new L4DestinationRepository(Provider);
+        WebsiteRepo = new WebsiteRepository(Provider);
 
         KeyService    = new ApiKeyService(KeyRepo);
         ConfigService = new ProxyConfigService(Provider, RouteRepo, ClusterRepo, DestRepo);
-        InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, l4RouteRepo, l4DestRepo, new ProxyYARP.Cluster.NodeIdentityManager(new ConfigurationBuilder().Build(), new Microsoft.Extensions.Logging.Abstractions.NullLogger<ProxyYARP.Cluster.NodeIdentityManager>()));
+        InitService   = new DbInitService(KeyRepo, RouteRepo, ClusterRepo, DestRepo, l4RouteRepo, l4DestRepo, GroupRepo, new ProxyYARP.Cluster.NodeIdentityManager(new ConfigurationBuilder().Build(), new Microsoft.Extensions.Logging.Abstractions.NullLogger<ProxyYARP.Cluster.NodeIdentityManager>()));
+        WebsiteService = new WebsiteConfigService(Provider, WebsiteRepo);
     }
 
     /// <summary>获取一个新打开的 SQLite 连接（测试用于原生 SQL 验证）</summary>

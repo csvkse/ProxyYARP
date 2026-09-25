@@ -33,11 +33,13 @@ public class MigrationRunnerTests : IDisposable
     {
         var provider = NewProvider();
         MigrationRunner.Migrate(provider);
+        var expected = provider.Migrations.Count; // 与迁移条数解耦，新增 Migration 无需改这里
+
         var act = () => MigrationRunner.Migrate(provider);
         act.Should().NotThrow();
 
         using var conn = provider.CreateConnection();
-        conn.ExecuteScalar<int>("""SELECT COUNT(*) FROM "ProxyYARP_SchemaMigrations" """).Should().Be(1);
+        conn.ExecuteScalar<int>("""SELECT COUNT(*) FROM "ProxyYARP_SchemaMigrations" """).Should().Be(expected);
     }
 
     [Fact]

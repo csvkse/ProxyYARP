@@ -131,6 +131,23 @@ public sealed class SqliteDbProvider : IDbProvider
             """),
         new DbMigration(2, "AddTargetGroupId", """
             ALTER TABLE "ProxyYARP_Nodes" ADD COLUMN "TargetGroupId" TEXT;
+            """),
+        new DbMigration(3, "AddWebsites", """
+            CREATE TABLE IF NOT EXISTS "ProxyYARP_Websites" (
+                "Id"             TEXT PRIMARY KEY,
+                "GroupId"        TEXT NOT NULL,
+                "Name"           TEXT NOT NULL,
+                "TargetUrl"      TEXT NOT NULL,
+                "HostAuthority"  TEXT NOT NULL,
+                "RewriteBody"    INTEGER NOT NULL DEFAULT 1,
+                "RewriteCookies" INTEGER NOT NULL DEFAULT 1,
+                "IsEnabled"      INTEGER NOT NULL DEFAULT 1,
+                "CreatedAt"      TEXT NOT NULL,
+                "UpdatedAt"      TEXT NOT NULL,
+                FOREIGN KEY("GroupId") REFERENCES "ProxyYARP_ConfigGroups"("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "idx_websites_groupid" ON "ProxyYARP_Websites"("GroupId");
+            CREATE UNIQUE INDEX IF NOT EXISTS "idx_websites_authority" ON "ProxyYARP_Websites"("HostAuthority", "GroupId");
             """)
     ];
 }

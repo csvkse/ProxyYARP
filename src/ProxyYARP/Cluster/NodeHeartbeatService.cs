@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -11,15 +12,18 @@ public class NodeHeartbeatService : BackgroundService
 {
     private readonly NodeIdentityManager _identityManager;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _config;
     private readonly ILogger<NodeHeartbeatService> _logger;
 
     public NodeHeartbeatService(
         NodeIdentityManager identityManager,
         IServiceProvider serviceProvider,
+        IConfiguration config,
         ILogger<NodeHeartbeatService> logger)
     {
         _identityManager = identityManager;
         _serviceProvider = serviceProvider;
+        _config = config;
         _logger = logger;
     }
 
@@ -62,7 +66,9 @@ public class NodeHeartbeatService : BackgroundService
                             }
                             
                             var uri = new Uri(addr.Replace("[::]", "localhost").Replace("*", "localhost").Replace("+", "localhost"));
-                            var newUrl = $"{uri.Scheme}://{localIp}:{uri.Port}";
+                            // 必须带上管理端前缀，否则分布式面板里点开会跳到 404（管理界面默认不在根路径）
+                            var pathBase = ProxyYARP.Auth.ManagementPath.Resolve(_config);
+                            var newUrl = $"{uri.Scheme}://{localIp}:{uri.Port}{pathBase}";
                             _identityManager.SetAutoManagementUrl(newUrl);
                         }
                     }

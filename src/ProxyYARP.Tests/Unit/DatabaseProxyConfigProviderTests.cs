@@ -23,6 +23,8 @@ public class DatabaseProxyConfigProviderTests : IDisposable
             _db.ConfigService,
             new ProxyYARP.Data.Repositories.ProxyConfigGroupRepository(_db.Provider),
             new ProxyYARP.Cluster.NodeIdentityManager(new ConfigurationBuilder().Build(), new Microsoft.Extensions.Logging.Abstractions.NullLogger<ProxyYARP.Cluster.NodeIdentityManager>()),
+            _db.WebsiteService,
+            new WebsiteAllowList(),
             NullLogger<DatabaseProxyConfigProvider>.Instance);
     }
 
