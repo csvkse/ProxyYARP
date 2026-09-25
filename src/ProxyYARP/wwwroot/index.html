@@ -216,6 +216,7 @@
                         <div v-if="nav.isCategory" class="px-4 pt-4 pb-1 text-[10px] font-mono text-cyber-muted/60 uppercase tracking-widest mt-2">
                             {{ t(nav.nameKey) }}
                         </div>
+                        <hr v-else-if="nav.isDivider" class="border-t border-[#1e1e3a] my-2 mx-4" />
                         <a v-else href="#" @click.prevent="currentView = nav.id; isMobileMenuOpen = false"
                             :class="[
                                 'flex items-center px-4 py-3 rounded text-sm font-mono tracking-wide transition-all',
@@ -669,9 +670,55 @@
                         
                         <!-- Tabs Navigation -->
                         <div class="flex space-x-1 mb-6 border-b border-[#1e1e3a]">
+                            <button @click="currentHelpTab = 'getting-started'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'getting-started' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabGettingStarted') }}</button>
                             <button @click="currentHelpTab = 'routing'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'routing' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabRouting') }}</button>
                             <button @click="currentHelpTab = 'metadata'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'metadata' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabMetadata') }}</button>
                             <button @click="currentHelpTab = 'lb'" :class="['px-4 py-2 font-mono text-sm border-b-2 transition-colors', currentHelpTab === 'lb' ? 'border-cyber-cyan text-cyber-cyan' : 'border-transparent text-cyber-muted hover:text-white']">{{ t('help.tabLb') }}</button>
+                        </div>
+
+                        <!-- Getting Started Tab -->
+                        <div v-if="currentHelpTab === 'getting-started'" class="space-y-6 animate-fade-in">
+                            <p class="text-cyber-text text-sm leading-relaxed" v-html="t('help.gsIntro')"></p>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.gsStep1Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-3" v-html="t('help.gsStep1Desc')"></p>
+                                <ol class="list-decimal list-inside space-y-2 text-cyber-text text-sm leading-relaxed font-mono">
+                                    <li v-html="t('help.gsStep1a')"></li>
+                                    <li v-html="t('help.gsStep1b')"></li>
+                                    <li v-html="t('help.gsStep1c')"></li>
+                                </ol>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.gsStep2Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-3" v-html="t('help.gsStep2Desc')"></p>
+                                <ol class="list-decimal list-inside space-y-2 text-cyber-text text-sm leading-relaxed font-mono">
+                                    <li v-html="t('help.gsStep2a')"></li>
+                                    <li v-html="t('help.gsStep2b')"></li>
+                                    <li v-html="t('help.gsStep2c')"></li>
+                                </ol>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.gsStep3Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-3" v-html="t('help.gsStep3Desc')"></p>
+                                <ol class="list-decimal list-inside space-y-2 text-cyber-text text-sm leading-relaxed font-mono">
+                                    <li v-html="t('help.gsStep3a')"></li>
+                                    <li v-html="t('help.gsStep3b')"></li>
+                                    <li v-html="t('help.gsStep3c')"></li>
+                                </ol>
+                            </div>
+
+                            <div class="glass-panel neon-border rounded-lg p-6">
+                                <h3 class="text-cyber-cyan font-mono text-lg font-bold mb-3 border-b border-[#1e1e3a] pb-2">{{ t('help.gsStep4Title') }}</h3>
+                                <p class="text-cyber-text text-sm leading-relaxed mb-3" v-html="t('help.gsStep4Desc')"></p>
+                                <ol class="list-decimal list-inside space-y-2 text-cyber-text text-sm leading-relaxed font-mono">
+                                    <li v-html="t('help.gsStep4a')"></li>
+                                    <li v-html="t('help.gsStep4b')"></li>
+                                    <li v-html="t('help.gsStep4c')"></li>
+                                </ol>
+                            </div>
                         </div>
 
                         <!-- Routing Tab -->
@@ -1094,7 +1141,9 @@
                     catEnv: 'Environment',
                     groups: 'Tenant & Groups',
                     nodes: 'System Nodes',
-                    catProxy: 'Proxy & Routing',
+                    catL4: 'L4 Proxies',
+                    catL7: 'L7 Routes & Clusters',
+                    catWeb: 'Website Proxies',
                     clusters: 'Backend Clusters',
                     routes: 'L7 HTTP Routes',
                     tcp: 'L4 TCP/UDP',
@@ -1244,6 +1293,28 @@
                 help: {
                     title: 'Help & Docs',
                     desc: 'Learn about YARP routing logic, metadata transforms, and proxy tips.',
+                    tabGettingStarted: 'Getting Started',
+                    gsIntro: 'The full path to get a workload behind the proxy: create a group and nodes first, then configure L4, L7 or website proxying as needed.',
+                    gsStep1Title: 'Step 1 - Nodes & Node Groups',
+                    gsStep1Desc: 'A node is a data-plane instance. A group (Group ID) partitions nodes, clusters and routes into isolated tenants - nodes in the same group share the same routing and cluster configuration.',
+                    gsStep1a: 'Go to <b>Environment -&gt; System Nodes</b>, add a node and fill in its name and management URL.',
+                    gsStep1b: 'To group it, click the node\'s group button and enter a Group ID.',
+                    gsStep1c: 'Pick the group you want to work in from the group switcher in the header - everything you create afterwards belongs to it.',
+                    gsStep2Title: 'Step 2 - Configure an L4 Proxy (TCP/UDP)',
+                    gsStep2Desc: 'L4 proxies forward ports without parsing HTTP - the right choice for databases, SSH, game servers and other non-HTTP traffic.',
+                    gsStep2a: 'Open <b>L4 Proxies</b>, then set the name, the listen port (local port) and the target address (host:port).',
+                    gsStep2b: 'It takes effect immediately - no cluster or route binding required.',
+                    gsStep2c: 'Do not reuse a listen port across nodes in the same group, or they will fight over it.',
+                    gsStep3Title: 'Step 3 - Configure L7 Routes & Clusters',
+                    gsStep3Desc: 'L7 proxying forwards by HTTP path. Create a cluster (the list of targets) first, then point a route at it.',
+                    gsStep3a: 'Open <b>L7 Routes &amp; Clusters -&gt; Backend Clusters</b>, create a cluster and add its destinations.',
+                    gsStep3b: 'Then open <b>L7 HTTP Routes</b>, set the route ID and match path, and select the cluster this route targets.',
+                    gsStep3c: 'Enable health checks and pick a load-balancing policy if you need them.',
+                    gsStep4Title: 'Step 4 - Configure a Website Proxy',
+                    gsStep4Desc: 'Website proxy is a shortcut over L7: register a site once and you get a prefixed entry URL, with optional HTML/CSS absolute-path rewriting.',
+                    gsStep4a: 'Open <b>Website Proxies</b>, then set the name and the target site address.',
+                    gsStep4b: 'After saving you get an access URL - visit the site through it.',
+                    gsStep4c: 'If assets fail to load, turn on "Rewrite HTML/CSS absolute paths".',
                     tabRouting: 'Routing Basics',
                     tabMetadata: 'Metadata & Transforms',
                     tabLb: 'LB & Health Checks',
@@ -1300,7 +1371,9 @@
                     catEnv: '系统与环境',
                     groups: '租户与分组',
                     nodes: '分布式节点',
-                    catProxy: '路由与代理',
+                    catL4: '四层代理',
+                    catL7: '七层路由与服务',
+                    catWeb: '网站代理',
                     clusters: '后端集群',
                     routes: 'L7 HTTP路由',
                     tcp: 'L4 TCP/UDP',
@@ -1450,6 +1523,28 @@
                 help: {
                     title: '帮助与文档',
                     desc: '了解 YARP 路由机制、元数据 (Transforms) 转换以及代理配置技巧。',
+                    tabGettingStarted: '使用流程',
+                    gsIntro: '从零开始接入代理的完整流程：先建分组和节点，再按需配置四层、七层或网站代理。',
+                    gsStep1Title: '① 节点与节点分组',
+                    gsStep1Desc: '节点是本机的数据面实例，分组（Group）用于把节点、集群、路由划分为多个互不干扰的租户，同组节点共享同一套路由与集群配置。',
+                    gsStep1a: '在 <b>系统与环境 → 分布式节点</b> 添加节点，填写名称与管理端地址。',
+                    gsStep1b: '如需分组，点击节点的分组按钮，输入 Group ID 把它划入对应分组。',
+                    gsStep1c: '用顶部的分组切换器选择当前操作的分组，后续配置都归属该分组。',
+                    gsStep2Title: '② 配置四层代理（TCP/UDP）',
+                    gsStep2Desc: '四层代理直接转发端口，不解析 HTTP，适合数据库、SSH、游戏服等非 HTTP 流量。',
+                    gsStep2a: '进入 <b>四层代理</b>，填写名称、监听端口与目标地址（host:port）。',
+                    gsStep2b: '保存后立即生效，无需绑定集群或路由。',
+                    gsStep2c: '同组内多个节点不要使用相同监听端口，否则会互相抢占。',
+                    gsStep3Title: '③ 配置七层路由与服务',
+                    gsStep3Desc: '七层代理按 HTTP 路径转发，需要先建集群（目标服务列表），再用路由把请求指向集群。',
+                    gsStep3a: '进入 <b>七层路由与服务 → 后端集群</b>，新建集群并添加目标节点（destination）。',
+                    gsStep3b: '再进入 <b>L7 HTTP 路由</b>，填写路由 ID、匹配路径，并指定对应集群。',
+                    gsStep3c: '可按需开启健康检查与负载均衡策略。',
+                    gsStep4Title: '④ 配置网站代理',
+                    gsStep4Desc: '网站代理是七层代理的快捷封装：登记站点地址后自动生成带前缀的访问入口，并可开启 HTML/CSS 绝对路径改写。',
+                    gsStep4a: '进入 <b>网站代理</b>，填写名称与站点目标地址。',
+                    gsStep4b: '保存后系统会给出访问 URL，直接通过该 URL 访问目标站点。',
+                    gsStep4c: '若出现资源加载失败，开启“重写 HTML/CSS 绝对路径”选项。',
                     tabRouting: '基础路由',
                     tabMetadata: '元数据与转换器 (Transforms)',
                     tabLb: '负载均衡与健康检查',
@@ -1539,7 +1634,7 @@
                 const groupIds = ref([]); // List of available GroupIds
 
                 const currentView = ref('nodes'); // nodes, clusters, routes, keys, help
-                const currentHelpTab = ref('routing'); // routing, metadata, lb
+                const currentHelpTab = ref('getting-started'); // getting-started, routing, metadata, lb
                 const loadingData = ref(false);
                 const isMobileMenuOpen = ref(false);
 
@@ -1559,11 +1654,13 @@
                     { isCategory: true, nameKey: 'nav.catEnv' },
                     { id: 'groups', nameKey: 'nav.groups', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>' },
                     { id: 'nodes', nameKey: 'nav.nodes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
-                    { isCategory: true, nameKey: 'nav.catProxy' },
+                    { isCategory: true, nameKey: 'nav.catL4' },
+                    { id: 'tcp', nameKey: 'nav.tcp', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' },
+                    { isCategory: true, nameKey: 'nav.catL7' },
                     { id: 'routes', nameKey: 'nav.routes', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>' },
                     { id: 'clusters', nameKey: 'nav.clusters', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' },
-                    { id: 'tcp', nameKey: 'nav.tcp', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' },
-                { id: 'websites', nameKey: 'nav.websites', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>' },
+                    { isCategory: true, nameKey: 'nav.catWeb' },
+                    { id: 'websites', nameKey: 'nav.websites', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0 3-4.03 3-9s-1.343-9-3-9m9-9H3m9 9a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9 9"></path></svg>' },
                     { isCategory: true, nameKey: 'nav.catSec' },
                     { id: 'keys', nameKey: 'nav.keys', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>' },
                     { id: 'help', nameKey: 'nav.help', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' }
@@ -1845,8 +1942,8 @@
                     websites, websiteAccessPreview,
                     toast, modal, form, closeModal, submitModal, newKeyResult,
                     testingConnection, testTcpConnection, globalGroupId, groupIds, loadData, switchGroup, deleteGroup,
-                    openNodeModal, openNodeGroupModal, openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal,
-                    deleteNode, deleteCluster, deleteDest, deleteRoute, deleteTcpRoute, deleteKey
+                    openNodeModal, openNodeGroupModal, openClusterModal, openDestModal, openRouteModal, openTcpRouteModal, openKeyModal, openWebsiteModal,
+                    deleteNode, deleteCluster, deleteDest, deleteRoute, deleteTcpRoute, deleteKey, deleteWebsite
                 };
             }
         }).mount('#app');

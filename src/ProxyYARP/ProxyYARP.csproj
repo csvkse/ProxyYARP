@@ -9,7 +9,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <AssemblyName>ProxyYARP</AssemblyName>
     <!-- Dapper.AOT source generator interception -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Dapper.AOT</InterceptorsNamespaces>
@@ -39,6 +39,8 @@
   <!-- Embed wwwroot into the binary -->
   <ItemGroup>
     <EmbeddedResource Include="wwwroot/**/*" />
+    <!-- 构建期校验脚本，不是前端资源：不嵌入、不随静态文件对外提供 -->
+    <EmbeddedResource Remove="wwwroot/tools/**/*" />
   </ItemGroup>
 
   <!-- AOT reflection descriptor -->
