@@ -89,4 +89,103 @@ public class WebsiteProxyTests
     {
         Assert.Equal(expected, WebsiteProxyTransformProvider.NormalizeAuthority(input));
     }
+
+    // ─────────── NormalizeAlias（短别名校验与规范化） ───────────
+
+    [Theory]
+    [InlineData("oa", "oa")]
+    [InlineData("GitLab", "gitlab")]
+    [InlineData("my-site-1", "my-site-1")]
+    [InlineData("app_2", "app_2")]
+    public void NormalizeAlias_Should_Handle_Valid_Aliases(string input, string expected)
+    {
+        Assert.Equal(expected, WebsiteConfigService.NormalizeAlias(input));
+    }
+
+    [Theory]
+    [InlineData("proxy")]       // 系统保留字
+    [InlineData("http")]
+    [InlineData("https")]
+    [InlineData("api")]
+    [InlineData("-bad")]        // 非字母数字开头
+    [InlineData("_bad")]
+    [InlineData("has space")]   // 空格
+    [InlineData("site/123")]    // 斜杠
+    public void NormalizeAlias_Should_Reject_Invalid_Or_Reserved(string input)
+    {
+        Assert.Throws<ArgumentException>(() => WebsiteConfigService.NormalizeAlias(input));
+    }
+
+    [Fact]
+    public void NormalizeAlias_Should_Return_Null_For_Null_Or_Whitespace()
+    {
+        Assert.Null(WebsiteConfigService.NormalizeAlias(null));
+        Assert.Null(WebsiteConfigService.NormalizeAlias("   "));
+    }
+
+    // ─────────── NormalizeAllowedModes（代理模式多选校验） ───────────
+
+    [Fact]
+    public void NormalizeAllowedModes_Should_Default_To_Scheme_And_Prefix()
+    {
+        var modes = WebsiteConfigService.NormalizeAllowedModes(null, null);
+        Assert.Equal("Scheme,Prefix", modes);
+    }
+
+    [Fact]
+    public void NormalizeAllowedModes_Should_Require_Alias_When_Alias_Mode_Selected()
+    {
+        Assert.Throws<ArgumentException>(() => WebsiteConfigService.NormalizeAllowedModes("Alias", null));
+        Assert.Throws<ArgumentException>(() => WebsiteConfigService.NormalizeAllowedModes("Prefix,Alias", "  "));
+
+        var valid = WebsiteConfigService.NormalizeAllowedModes("Prefix,Alias", "oa");
+        Assert.Contains("Prefix", valid);
+        Assert.Contains("Alias", valid);
+    }
+
+    [Fact]
+    public void WebsiteEntry_AllowsMode_Should_Check_Correctly()
+    {
+        var entry = new WebsiteEntry("example.com", true, true, true, "Prefix,Alias", "oa");
+        Assert.True(entry.AllowsMode("Prefix"));
+        Assert.True(entry.AllowsMode("prefix"));
+        Assert.True(entry.AllowsMode("Alias"));
+        Assert.False(entry.AllowsMode("Scheme"));
+    }
+
+    [Fact]
+    public void WebsiteAllowList_Should_Support_Authority_And_Alias_Lookup()
+    {
+        var list = new WebsiteAllowList();
+        var entity = new ProxyYARP.Data.Models.WebsiteEntity
+        {
+            Id = "1",
+            GroupId = "default",
+            Name = "OA",
+            TargetUrl = "https://oa.local",
+            HostAuthority = "oa.local",
+            RewriteBody = true,
+            RewriteCookies = true,
+            AllowedModes = "Prefix,Alias",
+            Alias = "oa",
+            IsEnabled = true
+        };
+
+        list.Replace(new[] { entity });
+
+        // 按 Authority 查询
+        Assert.True(list.TryGetByAuthority("oa.local", out var entry1));
+        Assert.NotNull(entry1);
+        Assert.Equal("oa.local", entry1.Authority);
+
+        // 按 Alias 查询
+        Assert.True(list.TryGetByAlias("oa", out var entry2));
+        Assert.NotNull(entry2);
+        Assert.Equal("oa.local", entry2.Authority);
+
+        // 统一 TryGet
+        Assert.True(list.TryGet("oa.local", out _));
+        Assert.True(list.TryGet("oa", out _));
+        Assert.False(list.TryGet("notfound", out _));
+    }
 }

@@ -37,7 +37,7 @@ public static class WebsitesApi
             var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
-                var entity = svc.Create(targetGroupId, req.Name, req.Url, req.RewriteBody, req.RewriteCookies);
+                var entity = svc.Create(targetGroupId, req.Name, req.Url, req.RewriteBody, req.RewriteCookies, req.AllowedModes, req.Alias);
                 return Results.Created($"/api/websites/{entity.Id}", MapToDto(entity));
             }
             catch (ArgumentException ex)
@@ -55,7 +55,7 @@ public static class WebsitesApi
             var targetGroupId = string.IsNullOrWhiteSpace(groupId) ? ident.GroupId : groupId;
             try
             {
-                var ok = svc.Update(id, targetGroupId, req.Name ?? "", req.Url, req.RewriteBody, req.RewriteCookies, req.IsEnabled);
+                var ok = svc.Update(id, targetGroupId, req.Name ?? "", req.Url, req.RewriteBody, req.RewriteCookies, req.IsEnabled, req.AllowedModes, req.Alias);
                 return ok ? Results.Ok(new StatusResponse { Message = "Updated" }) : Results.NotFound();
             }
             catch (ArgumentException ex)
@@ -80,11 +80,16 @@ public static class WebsitesApi
             try
             {
                 var (target, authority) = ProxyYARP.Data.Services.WebsiteConfigService.Normalize(req.Url ?? "");
+                var normAlias = ProxyYARP.Data.Services.WebsiteConfigService.NormalizeAlias(req.Alias);
+                var normModes = ProxyYARP.Data.Services.WebsiteConfigService.NormalizeAllowedModes(req.AllowedModes, normAlias);
+                var accessUrls = BuildAccessUrls(target, authority, normAlias, normModes);
+
                 return Results.Ok(new WebsiteTestUrlResponse
                 {
                     TargetUrl = target,
                     AccessUrlSuffix = $"/{target}/",
-                    Authority = authority
+                    Authority = authority,
+                    AccessUrls = accessUrls
                 });
             }
             catch (ArgumentException ex)
@@ -94,18 +99,38 @@ public static class WebsitesApi
         });
     }
 
-    private static WebsiteDto MapToDto(WebsiteEntity e) => new()
+    private static List<string> BuildAccessUrls(string targetUrl, string hostAuthority, string? alias, string allowedModes)
     {
-        Id = e.Id,
-        Name = e.Name,
-        Url = e.TargetUrl,
-        AccessUrl = $"/{e.TargetUrl}/",
-        RewriteBody = e.RewriteBody,
-        RewriteCookies = e.RewriteCookies,
-        IsEnabled = e.IsEnabled,
-        CreatedAt = e.CreatedAt.ToString("o"),
-        UpdatedAt = e.UpdatedAt.ToString("o")
-    };
+        var modes = (allowedModes ?? "Scheme,Prefix").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var urls = new List<string>();
+        if (modes.Contains("Prefix", StringComparer.OrdinalIgnoreCase))
+            urls.Add($"/proxy/{hostAuthority}/");
+        if (modes.Contains("Scheme", StringComparer.OrdinalIgnoreCase))
+            urls.Add($"/{targetUrl}/");
+        if (modes.Contains("Alias", StringComparer.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(alias))
+            urls.Add($"/s/{alias}/");
+        return urls;
+    }
+
+    private static WebsiteDto MapToDto(WebsiteEntity e)
+    {
+        var accessUrls = BuildAccessUrls(e.TargetUrl, e.HostAuthority, e.Alias, e.AllowedModes);
+        return new WebsiteDto
+        {
+            Id = e.Id,
+            Name = e.Name,
+            Url = e.TargetUrl,
+            AccessUrl = $"/{e.TargetUrl}/",
+            AccessUrls = accessUrls,
+            AllowedModes = e.AllowedModes,
+            Alias = e.Alias,
+            RewriteBody = e.RewriteBody,
+            RewriteCookies = e.RewriteCookies,
+            IsEnabled = e.IsEnabled,
+            CreatedAt = e.CreatedAt.ToString("o"),
+            UpdatedAt = e.UpdatedAt.ToString("o")
+        };
+    }
 }
 
 public sealed class CreateWebsiteRequest
@@ -114,6 +139,8 @@ public sealed class CreateWebsiteRequest
     public string Url { get; set; } = "";
     public bool RewriteBody { get; set; } = true;
     public bool RewriteCookies { get; set; } = true;
+    public string? AllowedModes { get; set; }
+    public string? Alias { get; set; }
 }
 
 public sealed class UpdateWebsiteRequest
@@ -123,6 +150,8 @@ public sealed class UpdateWebsiteRequest
     public bool RewriteBody { get; set; } = true;
     public bool RewriteCookies { get; set; } = true;
     public bool IsEnabled { get; set; } = true;
+    public string? AllowedModes { get; set; }
+    public string? Alias { get; set; }
 }
 
 public sealed class WebsiteDto
@@ -131,6 +160,9 @@ public sealed class WebsiteDto
     public string Name { get; set; } = "";
     public string Url { get; set; } = "";
     public string AccessUrl { get; set; } = "";
+    public List<string> AccessUrls { get; set; } = [];
+    public string AllowedModes { get; set; } = "Scheme,Prefix";
+    public string? Alias { get; set; }
     public bool RewriteBody { get; set; }
     public bool RewriteCookies { get; set; }
     public bool IsEnabled { get; set; }
@@ -141,6 +173,8 @@ public sealed class WebsiteDto
 public sealed class WebsiteTestUrlRequest
 {
     public string Url { get; set; } = "";
+    public string? AllowedModes { get; set; }
+    public string? Alias { get; set; }
 }
 
 public sealed class WebsiteTestUrlResponse
@@ -148,4 +182,5 @@ public sealed class WebsiteTestUrlResponse
     public string TargetUrl { get; set; } = "";
     public string Authority { get; set; } = "";
     public string AccessUrlSuffix { get; set; } = "";
+    public List<string> AccessUrls { get; set; } = [];
 }

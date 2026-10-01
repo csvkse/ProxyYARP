@@ -158,6 +158,11 @@ public sealed class PostgreSqlDbProvider : IDbProvider
             );
             CREATE INDEX IF NOT EXISTS "idx_websites_groupid" ON "ProxyYARP_Websites"("GroupId");
             CREATE UNIQUE INDEX IF NOT EXISTS "idx_websites_authority" ON "ProxyYARP_Websites"("HostAuthority", "GroupId");
+            """),
+        new DbMigration(4, "AddWebsiteProxyModesAndAlias", """
+            ALTER TABLE "ProxyYARP_Websites" ADD COLUMN IF NOT EXISTS "AllowedModes" TEXT NOT NULL DEFAULT 'Scheme,Prefix';
+            ALTER TABLE "ProxyYARP_Websites" ADD COLUMN IF NOT EXISTS "Alias" TEXT;
+            CREATE UNIQUE INDEX IF NOT EXISTS "idx_websites_alias_groupid" ON "ProxyYARP_Websites"("Alias", "GroupId") WHERE "Alias" IS NOT NULL;
             """)
     ];
 }

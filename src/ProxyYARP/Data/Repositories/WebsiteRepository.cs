@@ -39,6 +39,15 @@ public partial class WebsiteRepository : BaseRepository<WebsiteEntity>
             new { HostAuthority = hostAuthority, GroupId = groupId }));
     }
 
+    /// <summary>按 alias 查找，用于创建/更新时的别名重复校验</summary>
+    public WebsiteEntity? GetByAlias(string alias, string groupId)
+    {
+        if (string.IsNullOrWhiteSpace(alias)) return null;
+        return WithConnection(c => c.QueryFirstOrDefault<WebsiteEntity>(
+            """SELECT * FROM "ProxyYARP_Websites" WHERE "Alias" = @Alias AND "GroupId" = @GroupId""",
+            new { Alias = alias, GroupId = groupId }));
+    }
+
     public void Insert(WebsiteEntity entity)
         => WithConnection(c => InsertTx(entity, c, null));
 
@@ -47,9 +56,9 @@ public partial class WebsiteRepository : BaseRepository<WebsiteEntity>
     {
         conn.Execute("""
             INSERT INTO "ProxyYARP_Websites"
-            ("Id", "GroupId", "Name", "TargetUrl", "HostAuthority", "RewriteBody", "RewriteCookies", "IsEnabled", "CreatedAt", "UpdatedAt")
+            ("Id", "GroupId", "Name", "TargetUrl", "HostAuthority", "RewriteBody", "RewriteCookies", "IsEnabled", "AllowedModes", "Alias", "CreatedAt", "UpdatedAt")
             VALUES
-            (@Id, @GroupId, @Name, @TargetUrl, @HostAuthority, @RewriteBody, @RewriteCookies, @IsEnabled, @CreatedAt, @UpdatedAt)
+            (@Id, @GroupId, @Name, @TargetUrl, @HostAuthority, @RewriteBody, @RewriteCookies, @IsEnabled, @AllowedModes, @Alias, @CreatedAt, @UpdatedAt)
             """, entity, tx);
     }
 
@@ -67,6 +76,8 @@ public partial class WebsiteRepository : BaseRepository<WebsiteEntity>
                 "RewriteBody" = @RewriteBody,
                 "RewriteCookies" = @RewriteCookies,
                 "IsEnabled" = @IsEnabled,
+                "AllowedModes" = @AllowedModes,
+                "Alias" = @Alias,
                 "UpdatedAt" = @UpdatedAt
             WHERE "Id" = @Id AND "GroupId" = @GroupId
             """, entity, tx);

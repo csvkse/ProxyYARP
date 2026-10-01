@@ -16,6 +16,8 @@ public class WebsiteEntity
     public bool RewriteBody { get; set; } = true;     // 改写 HTML/CSS 内的绝对路径
     public bool RewriteCookies { get; set; } = true;  // 按站点隔离 Cookie 作用域
     public bool IsEnabled { get; set; } = true;
+    public string AllowedModes { get; set; } = "Scheme,Prefix"; // 启用的代理模式（逗号分隔：Scheme,Prefix,Alias）
+    public string? Alias { get; set; }                // 可选短别名（如 oa、gitlab）
     private DateTime _createdAt;
     public DateTime CreatedAt { get => _createdAt; set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc); }
 

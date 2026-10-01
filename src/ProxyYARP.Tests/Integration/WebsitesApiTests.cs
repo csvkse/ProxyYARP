@@ -191,11 +191,85 @@ public class WebsitesApiTests : IClassFixture<ProxyYarpWebFactory>
     }
 
     [Fact]
-    public async Task TestUrl_With_Invalid_Url_Should_Return_400()
+    public async Task Create_With_Alias_And_Modes_Should_Succeed_And_Return_AccessUrls()
     {
         var client = _factory.CreateAdminClient();
-        var res = await client.PostAsJsonAsync("/api/websites/test-url", new { url = "ftp://bad.example" });
+        var alias = $"site-{Guid.NewGuid():N}"[..10];
+        var url = $"https://app-{alias}.example";
+
+        var res = await client.PostAsJsonAsync("/api/websites", new
+        {
+            name = "Multi-Mode Site",
+            url = url,
+            alias = alias,
+            allowedModes = "Prefix,Alias",
+            rewriteBody = true,
+            rewriteCookies = true
+        });
+
+        res.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await res.Content.ReadFromJsonAsync<WebsiteDto>();
+        body.Should().NotBeNull();
+        body!.Alias.Should().Be(alias);
+        body.AllowedModes.Should().Be("Prefix,Alias");
+        body.AccessUrls.Should().Contain($"/proxy/app-{alias}.example/");
+        body.AccessUrls.Should().Contain($"/s/{alias}/");
+        body.AccessUrls.Should().NotContain($"/{url}/"); // 未开启 Scheme
+    }
+
+    [Fact]
+    public async Task Create_With_Duplicate_Alias_Should_Return_400()
+    {
+        var client = _factory.CreateAdminClient();
+        var alias = $"dup-{Guid.NewGuid():N}"[..8];
+
+        var res1 = await client.PostAsJsonAsync("/api/websites", new
+        {
+            name = "Site 1",
+            url = $"https://s1-{alias}.example",
+            alias = alias
+        });
+        res1.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var res2 = await client.PostAsJsonAsync("/api/websites", new
+        {
+            name = "Site 2",
+            url = $"https://s2-{alias}.example",
+            alias = alias
+        });
+        res2.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Create_With_Reserved_Alias_Should_Return_400()
+    {
+        var client = _factory.CreateAdminClient();
+        var res = await client.PostAsJsonAsync("/api/websites", new
+        {
+            name = "Reserved Site",
+            url = "https://res.example",
+            alias = "proxy"
+        });
         res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task TestUrl_Should_Return_Multiple_AccessUrls()
+    {
+        var client = _factory.CreateAdminClient();
+        var res = await client.PostAsJsonAsync("/api/websites/test-url", new
+        {
+            url = "https://test.example",
+            alias = "my-test",
+            allowedModes = "Prefix,Scheme,Alias"
+        });
+
+        res.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await res.Content.ReadFromJsonAsync<UrlPreview>();
+        body.Should().NotBeNull();
+        body!.AccessUrls.Should().Contain("/proxy/test.example/");
+        body.AccessUrls.Should().Contain("/https://test.example/");
+        body.AccessUrls.Should().Contain("/s/my-test/");
     }
 }
 
@@ -206,6 +280,9 @@ public sealed class WebsiteDto
     public string Name { get; set; } = "";
     public string Url { get; set; } = "";
     public string AccessUrl { get; set; } = "";
+    public List<string> AccessUrls { get; set; } = [];
+    public string AllowedModes { get; set; } = "";
+    public string? Alias { get; set; }
     public bool RewriteBody { get; set; }
     public bool RewriteCookies { get; set; }
     public bool IsEnabled { get; set; }
@@ -218,4 +295,5 @@ public sealed class UrlPreview
     public string TargetUrl { get; set; } = "";
     public string Authority { get; set; } = "";
     public string AccessUrlSuffix { get; set; } = "";
+    public List<string> AccessUrls { get; set; } = [];
 }

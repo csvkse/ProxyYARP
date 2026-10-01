@@ -539,11 +539,24 @@
                                             <td>
                                                 <div :class="['w-2 h-2 rounded-full', w.isEnabled ? 'bg-cyber-green shadow-neon-green' : 'bg-cyber-muted']"></div>
                                             </td>
-                                            <td class="font-bold">{{ w.name }}</td>
+                                            <td class="font-bold">
+                                                {{ w.name }}
+                                                <span v-if="w.alias" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-cyber-purple/20 text-cyber-purple border border-cyber-purple/40 font-mono">{{ w.alias }}</span>
+                                            </td>
                                             <td class="text-cyber-cyan">{{ w.url }}</td>
                                             <td class="text-cyber-muted text-[11px]">
-                                                <a :href="w.accessUrl" target="_blank" class="hover:text-cyber-cyan">{{ t('websites.open') }}</a>
-                                                <span v-if="!w.rewriteBody" class="ml-2 text-cyber-amber">{{ t('websites.bodyOff') }}</span>
+                                                <div class="flex flex-wrap gap-1.5 items-center">
+                                                    <template v-if="w.accessUrls && w.accessUrls.length > 0">
+                                                        <a v-for="item in w.accessUrls" :key="item" :href="item" target="_blank"
+                                                           class="px-1.5 py-0.5 rounded bg-cyber-cyan/10 border border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/20 transition-all font-mono text-[10px]">
+                                                            {{ item }}
+                                                        </a>
+                                                    </template>
+                                                    <template v-else>
+                                                        <a :href="w.accessUrl" target="_blank" class="hover:text-cyber-cyan">{{ t('websites.open') }}</a>
+                                                    </template>
+                                                    <span v-if="!w.rewriteBody" class="ml-1 text-cyber-amber text-[10px]">({{ t('websites.bodyOff') }})</span>
+                                                </div>
                                             </td>
                                             <td class="text-right space-x-3" v-if="isAdmin">
                                                 <button @click="openWebsiteModal(w)" class="text-cyber-cyan hover:underline uppercase text-[10px]">{{ t('common.edit') }}</button>
@@ -998,6 +1011,28 @@
                             <input v-model="form.url" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="https://example.com" required>
                             <p class="text-[10px] text-cyber-muted mt-1 font-mono">{{ t('websites.modalTargetHint') }}</p>
                         </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1">{{ t('websites.alias') }}</label>
+                            <input v-model="form.alias" type="text" class="cyber-input w-full rounded px-3 py-2" placeholder="e.g. oa, gitlab">
+                            <p class="text-[10px] text-cyber-muted mt-1 font-mono">{{ t('websites.aliasHint') }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-cyber-muted mb-1.5">{{ t('websites.modes') }} *</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <label class="flex items-center space-x-2 bg-black/20 p-2 rounded border border-cyber-border cursor-pointer">
+                                    <input type="checkbox" v-model="form.modePrefix" class="cyber-checkbox">
+                                    <span class="text-xs text-white">{{ t('websites.modePrefix') }}</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-black/20 p-2 rounded border border-cyber-border cursor-pointer">
+                                    <input type="checkbox" v-model="form.modeScheme" class="cyber-checkbox">
+                                    <span class="text-xs text-white">{{ t('websites.modeScheme') }}</span>
+                                </label>
+                                <label class="flex items-center space-x-2 bg-black/20 p-2 rounded border border-cyber-border cursor-pointer">
+                                    <input type="checkbox" v-model="form.modeAlias" class="cyber-checkbox">
+                                    <span class="text-xs text-white">{{ t('websites.modeAlias') }}</span>
+                                </label>
+                            </div>
+                        </div>
                         <div class="flex items-center space-x-2">
                             <input type="checkbox" v-model="form.rewriteBody" id="wbody" class="cyber-checkbox">
                             <label for="wbody" class="text-xs text-white ml-2">{{ t('websites.rewriteBody') }}</label>
@@ -1224,9 +1259,10 @@
                     desc: 'Add registered websites and reach them through the gateway prefix.',
                     newBtn: '+ New Website',
                     hintTitle: 'How to access >> ',
-                    hintBody: 'A registered site is reached at ' +
-                        '<span class="text-cyber-cyan">网关域名/{scheme}://目标站域名/路径</span> — ' +
-                        'e.g. <span class="text-cyber-cyan">/https://example.com/login</span>. ' +
+                    hintBody: 'A registered site can be reached via ' +
+                        '<span class="text-cyber-cyan">/proxy/{domain}/path</span>, ' +
+                        '<span class="text-cyber-cyan">/{scheme}://{domain}/path</span>, or ' +
+                        '<span class="text-cyber-cyan">/s/{alias}/path</span>. ' +
                         'Only authority entries added here can be proxied; anything else gets 403.',
                     name: 'Name',
                     target: 'Target Website',
@@ -1237,9 +1273,15 @@
                     modalTitle: 'Website Proxy',
                     modalTarget: 'Website URL *',
                     modalTargetHint: 'Enter the site itself, e.g. https://example.com — http:// and https:// are both supported.',
+                    alias: 'Short Alias (Optional)',
+                    aliasHint: 'Optional short slug (e.g. oa, gitlab), letters/numbers/dashes only.',
+                    modes: 'Allowed Proxy Modes',
+                    modePrefix: 'Prefix (/proxy/domain)',
+                    modeScheme: 'Scheme (/{scheme}://domain)',
+                    modeAlias: 'Short Alias (/s/alias)',
                     rewriteBody: 'Rewrite HTML/CSS absolute paths (fix broken assets)',
                     rewriteCookies: 'Isolate cookies per site (fix cookie conflicts)',
-                    previewLabel: 'Access entry will be:'
+                    previewLabel: 'Access entries will be:'
                 },
                 groups: {
                     title: 'Groups Management',
@@ -1454,10 +1496,11 @@
                     desc: '登记需要访问的网站，通过网关前缀统一访问。',
                     newBtn: '+ 新增网站',
                     hintTitle: '访问方式 >> ',
-                    hintBody: '已登记的网站通过 ' +
-                        '<span class="text-cyber-cyan">网关域名/{scheme}://目标站域名/路径</span> 访问，' +
-                        '例如 <span class="text-cyber-cyan">/https://example.com/login</span>。' +
-                        '只有在此登记的站点会被代理，其余一律返回 403。',
+                    hintBody: '已登记网站支持通过 ' +
+                        '<span class="text-cyber-cyan">/proxy/域名/路径</span>、' +
+                        '<span class="text-cyber-cyan">/{scheme}://域名/路径</span> 或 ' +
+                        '<span class="text-cyber-cyan">/s/别名/路径</span> 访问。' +
+                        '只有在此授权的站点会被代理，其余一律返回 403。',
                     name: '名称',
                     target: '目标网站',
                     access: '访问',
@@ -1467,6 +1510,12 @@
                     modalTitle: '网站代理配置',
                     modalTarget: '网站地址 *',
                     modalTargetHint: '直接填写网站本身，如 https://example.com；同时支持 http:// 与 https://。',
+                    alias: '短别名（选填）',
+                    aliasHint: '选填短别名（如 oa、gitlab），仅支持小写字母、数字与中划线。',
+                    modes: '启用的访问方式',
+                    modePrefix: '前缀模式 (/proxy/域名)',
+                    modeScheme: '协议内嵌 (/{scheme}://域名)',
+                    modeAlias: '短别名 (/s/别名)',
                     rewriteBody: '改写 HTML/CSS 中的绝对路径（修复资源挂载错误）',
                     rewriteCookies: '按站点隔离 Cookie 作用域（修复多个站点登录串号）',
                     previewLabel: '访问入口将是：'
@@ -1699,6 +1748,13 @@
                     Object.keys(form).forEach(k => delete form[k]);
                     if(data) {
                         Object.assign(form, JSON.parse(JSON.stringify(data)));
+                        if(type === 'website') {
+                            const modes = (data.allowedModes || 'Scheme,Prefix').split(',').map(s => s.trim().toLowerCase());
+                            form.modePrefix = modes.includes('prefix');
+                            form.modeScheme = modes.includes('scheme');
+                            form.modeAlias = modes.includes('alias');
+                            form.alias = data.alias || '';
+                        }
                     } else {
                         if(type==='cluster') { form.loadBalancing = 'RoundRobin'; form.isEnabled = true; }
                         if(type==='route') { form.order = 0; form.isEnabled = true; }
@@ -1715,6 +1771,10 @@
                             form.isEnabled = true;
                             form.url = '';
                             form.name = '';
+                            form.alias = '';
+                            form.modePrefix = true;
+                            form.modeScheme = true;
+                            form.modeAlias = false;
                         }
                         if(type==='key') { form.role = 'ReadOnly'; form.isEnabled = true; }
                         if(type==='dest') { form.isEnabled = true; }
@@ -1802,7 +1862,7 @@
                 watch(currentView, loadData);
 
                 // 网站代理：随输入实时预览访问入口（纯前端推算，不发起请求）
-                watch(() => [form.url, modal.type], () => {
+                watch(() => [form.url, form.alias, form.modePrefix, form.modeScheme, form.modeAlias, modal.type], () => {
                     if (modal.type !== 'website') { websiteAccessPreview.value = ''; return; }
                     const raw = (form.url || '').trim();
                     if (!raw) { websiteAccessPreview.value = ''; return; }
@@ -1814,9 +1874,25 @@
                             return;
                         }
                         const auth = u.port ? `${u.hostname}:${u.port}` : u.hostname;
-                        const prefix = `${u.protocol}//${auth}`;
-                        websiteAccessPreview.value =
-                            `${window.location.origin}/<span class="text-white">${prefix}</span>/目标路径`;
+                        const origin = window.location.origin;
+                        const previews = [];
+
+                        if (form.modePrefix) {
+                            previews.push(`<div><span class="text-cyber-muted text-[10px]">前缀模式:</span> ${origin}/<span class="text-white">proxy/${auth}</span>/路径</div>`);
+                        }
+                        if (form.modeScheme) {
+                            previews.push(`<div><span class="text-cyber-muted text-[10px]">协议内嵌:</span> ${origin}/<span class="text-white">${u.protocol}//${auth}</span>/路径</div>`);
+                        }
+                        if (form.modeAlias) {
+                            const a = (form.alias || '').trim() || '<span class="text-cyber-red">未填别名</span>';
+                            previews.push(`<div><span class="text-cyber-muted text-[10px]">短别名:</span> ${origin}/<span class="text-white">s/${a}</span>/路径</div>`);
+                        }
+
+                        if (previews.length === 0) {
+                            websiteAccessPreview.value = `<span class="text-cyber-amber">未勾选任何访问方式</span>`;
+                        } else {
+                            websiteAccessPreview.value = `<div class="space-y-1">${previews.join('')}</div>`;
+                        }
                     } catch (e) {
                         websiteAccessPreview.value = `<span class="text-cyber-red">地址无法解析</span>`;
                     }
@@ -1892,6 +1968,20 @@
                         } else if (modal.type === 'tcp') {
                             url = isEdit ? `/api/tcp-routes/${form.id}` : '/api/tcp-routes';
                         } else if (modal.type === 'website') {
+                            const modes = [];
+                            if (form.modePrefix) modes.push('Prefix');
+                            if (form.modeScheme) modes.push('Scheme');
+                            if (form.modeAlias) modes.push('Alias');
+                            if (modes.length === 0) {
+                                showToast(currentLang.value === 'zh' ? '请至少选择一种代理访问方式' : 'Please select at least one proxy mode', true);
+                                return;
+                            }
+                            if (form.modeAlias && !form.alias?.trim()) {
+                                showToast(currentLang.value === 'zh' ? '启用短别名模式时必须填写短别名' : 'Alias is required when alias mode is enabled', true);
+                                return;
+                            }
+                            form.allowedModes = modes.join(',');
+                            form.alias = (form.alias || '').trim() || null;
                             url = isEdit ? `/api/websites/${form.id}` : '/api/websites';
                         } else if (modal.type === 'key') {
                             url = isEdit ? `/api/keys/${form.id}` : '/api/keys';

@@ -4,6 +4,7 @@ using ProxyYARP.Data.Models;
 using ProxyYARP.Data.Repositories;
 using System.Data;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace ProxyYARP.Data.Services;
 
@@ -79,16 +80,77 @@ public partial class WebsiteConfigService
         return (target, authority);
     }
 
-    public WebsiteEntity Create(string groupId, string name, string url, bool rewriteBody, bool rewriteCookies)
+    /// <summary>
+    /// 规范化短别名：小写、去除首尾空格、合法性校验与保留字拦截。
+    /// 为空时返回 null。
+    /// </summary>
+    public static string? NormalizeAlias(string? alias)
+    {
+        if (string.IsNullOrWhiteSpace(alias)) return null;
+        var trimmed = alias.Trim().ToLowerInvariant();
+        if (!Regex.IsMatch(trimmed, @"^[a-z0-9][a-z0-9\-_]{0,63}$"))
+            throw new ArgumentException("短别名必须以字母或数字开头，仅包含小写字母、数字、中划线和下划线，长度在 1 到 64 之间");
+
+        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "proxy", "http", "https", "api", "scalar", "openapi", "swagger", "static", "ws"
+        };
+        if (reserved.Contains(trimmed))
+            throw new ArgumentException($"短别名 '{trimmed}' 为系统保留关键字，不能使用");
+
+        return trimmed;
+    }
+
+    /// <summary>
+    /// 规范化允许的代理模式集合，默认 "Scheme,Prefix"。
+    /// 可选模式：Scheme (协议内嵌), Prefix (路径前缀 /proxy/), Alias (短别名 /s/)。
+    /// </summary>
+    public static string NormalizeAllowedModes(string? modes, string? alias)
+    {
+        if (string.IsNullOrWhiteSpace(modes))
+            modes = "Scheme,Prefix";
+
+        var validModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Scheme", "Prefix", "Alias" };
+        var list = modes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Where(m => validModes.Contains(m))
+                        .Select(m => m switch
+                        {
+                            _ when string.Equals(m, "Scheme", StringComparison.OrdinalIgnoreCase) => "Scheme",
+                            _ when string.Equals(m, "Prefix", StringComparison.OrdinalIgnoreCase) => "Prefix",
+                            _ when string.Equals(m, "Alias", StringComparison.OrdinalIgnoreCase) => "Alias",
+                            _ => m
+                        })
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+        if (list.Count == 0)
+            throw new ArgumentException("至少需要选择一种代理模式");
+
+        if (list.Contains("Alias") && string.IsNullOrWhiteSpace(alias))
+            throw new ArgumentException("启用短别名模式时必须指定短别名");
+
+        return string.Join(",", list);
+    }
+
+    public WebsiteEntity Create(string groupId, string name, string url, bool rewriteBody, bool rewriteCookies, string? allowedModes = null, string? alias = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("名称不能为空");
 
         var (target, authority) = Normalize(url);
+        var normAlias = NormalizeAlias(alias);
+        var normModes = NormalizeAllowedModes(allowedModes, normAlias);
 
         var existing = _repo.GetByHostAuthority(authority, groupId);
         if (existing != null)
             throw new ArgumentException($"目标网站 '{authority}' 已存在（{existing.Name}），不能重复添加");
+
+        if (normAlias != null)
+        {
+            var dupAlias = _repo.GetByAlias(normAlias, groupId);
+            if (dupAlias != null)
+                throw new ArgumentException($"短别名 '{normAlias}' 已被其他条目占用（{dupAlias.Name}），不能重复使用");
+        }
 
         var now = DateTime.UtcNow;
         var entity = new WebsiteEntity
@@ -100,6 +162,8 @@ public partial class WebsiteConfigService
             HostAuthority = authority,
             RewriteBody = rewriteBody,
             RewriteCookies = rewriteCookies,
+            AllowedModes = normModes,
+            Alias = normAlias,
             IsEnabled = true,
             CreatedAt = now,
             UpdatedAt = now
@@ -109,22 +173,33 @@ public partial class WebsiteConfigService
         return entity;
     }
 
-    public bool Update(string id, string groupId, string name, string url, bool rewriteBody, bool rewriteCookies, bool isEnabled)
+    public bool Update(string id, string groupId, string name, string url, bool rewriteBody, bool rewriteCookies, bool isEnabled, string? allowedModes = null, string? alias = null)
     {
         var entity = _repo.GetById(id, groupId);
         if (entity == null) return false;
 
         var (target, authority) = Normalize(url);
+        var normAlias = NormalizeAlias(alias);
+        var normModes = NormalizeAllowedModes(allowedModes, normAlias);
 
         var duplicate = _repo.GetByHostAuthority(authority, groupId);
         if (duplicate != null && duplicate.Id != id)
             throw new ArgumentException($"目标网站 '{authority}' 已被其他条目占用（{duplicate.Name}）");
+
+        if (normAlias != null)
+        {
+            var dupAlias = _repo.GetByAlias(normAlias, groupId);
+            if (dupAlias != null && dupAlias.Id != id)
+                throw new ArgumentException($"短别名 '{normAlias}' 已被其他条目占用（{dupAlias.Name}）");
+        }
 
         entity.Name = string.IsNullOrWhiteSpace(name) ? entity.Name : name.Trim();
         entity.TargetUrl = target;
         entity.HostAuthority = authority;
         entity.RewriteBody = rewriteBody;
         entity.RewriteCookies = rewriteCookies;
+        entity.AllowedModes = normModes;
+        entity.Alias = normAlias;
         entity.IsEnabled = isEnabled;
         entity.UpdatedAt = DateTime.UtcNow;
 
